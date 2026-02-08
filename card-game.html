@@ -1041,6 +1041,14 @@ body {
   <p class="subtitle">카드 배틀</p>
   <button class="menu-btn" onclick="startGame('ai')">AI 대전</button>
   <button class="menu-btn" onclick="startGame('pvp')">2인 대전</button>
+  <button class="menu-btn" onclick="openMenuDictionary()">📖 카드 도감</button>
+</div>
+
+<!-- MENU DICTIONARY -->
+<div id="menu-dictionary" style="display:none; flex-direction:column; align-items:center; height:100vh; background:linear-gradient(135deg,#0f0c29,#302b63,#24243e); padding:30px; overflow-y:auto;">
+  <h2 style="margin-bottom:20px;">📖 카드 도감</h2>
+  <div id="menu-dict-content" style="width:100%; max-width:700px;"></div>
+  <button class="back-btn" onclick="closeMenuDictionary()" style="margin-top:20px; margin-bottom:30px;">뒤로</button>
 </div>
 
 <!-- FACTION SELECT -->
@@ -2281,6 +2289,7 @@ function showMainMenu() {
   document.getElementById('game-board').style.display = 'none';
   document.getElementById('game-over').style.display = 'none';
   document.getElementById('turn-transition').style.display = 'none';
+  document.getElementById('menu-dictionary').style.display = 'none';
   gameState = null;
 }
 
@@ -2390,6 +2399,22 @@ function renderDictFaction(factionName, cards, fclass) {
   html += '</div></div>';
 
   return html;
+}
+
+// ===== MENU DICTIONARY =====
+function openMenuDictionary() {
+  document.getElementById('main-menu').style.display = 'none';
+  document.getElementById('menu-dictionary').style.display = 'flex';
+
+  let html = '';
+  html += renderDictFaction('인간', HUMAN_CARDS, 'human-card');
+  html += renderDictFaction('악마', DEMON_CARDS, 'demon-card');
+  document.getElementById('menu-dict-content').innerHTML = html;
+}
+
+function closeMenuDictionary() {
+  document.getElementById('menu-dictionary').style.display = 'none';
+  document.getElementById('main-menu').style.display = 'flex';
 }
 </script>
 </body>

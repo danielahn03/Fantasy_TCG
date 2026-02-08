@@ -1,0 +1,2356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인간 vs 악마 - 카드 배틀</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  color: #fff;
+  overflow: hidden;
+  height: 100vh;
+  user-select: none;
+}
+
+/* ===== MAIN MENU ===== */
+#main-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+}
+
+#main-menu h1 {
+  font-size: 3em;
+  margin-bottom: 10px;
+  text-shadow: 0 0 20px rgba(255,100,50,0.5);
+}
+
+#main-menu .subtitle {
+  font-size: 1.2em;
+  color: #aaa;
+  margin-bottom: 40px;
+}
+
+.menu-btn {
+  padding: 15px 50px;
+  margin: 10px;
+  font-size: 1.2em;
+  border: 2px solid #555;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.menu-btn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: #f0a;
+  transform: scale(1.05);
+}
+
+/* ===== FACTION SELECT ===== */
+#faction-select {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+}
+
+#faction-select h2 {
+  font-size: 2em;
+  margin-bottom: 30px;
+}
+
+.faction-cards {
+  display: flex;
+  gap: 40px;
+}
+
+.faction-card {
+  width: 280px;
+  padding: 30px;
+  border: 3px solid #555;
+  border-radius: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.faction-card:hover {
+  transform: translateY(-10px);
+}
+
+.faction-card.human {
+  background: linear-gradient(180deg, #2a1f0e, #1a1508);
+  border-color: #c9a84c;
+}
+
+.faction-card.human:hover {
+  box-shadow: 0 0 30px rgba(201,168,76,0.4);
+}
+
+.faction-card.demon {
+  background: linear-gradient(180deg, #2e0a0a, #1a0505);
+  border-color: #c0392b;
+}
+
+.faction-card.demon:hover {
+  box-shadow: 0 0 30px rgba(192,57,43,0.4);
+}
+
+.faction-icon {
+  font-size: 5em;
+  margin-bottom: 15px;
+}
+
+.faction-card h3 {
+  font-size: 1.5em;
+  margin-bottom: 10px;
+}
+
+.faction-card p {
+  color: #aaa;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.back-btn {
+  margin-top: 30px;
+  padding: 10px 30px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid #555;
+  color: #aaa;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.back-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
+/* ===== GAME BOARD ===== */
+#game-board {
+  display: none;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(180deg, #0d1117, #161b22, #0d1117);
+  position: relative;
+}
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 15px;
+  background: rgba(0,0,0,0.3);
+  font-size: 0.85em;
+  height: 35px;
+}
+
+.top-bar .game-info { color: #888; }
+.top-bar .menu-link { color: #666; cursor: pointer; }
+.top-bar .menu-link:hover { color: #fff; }
+
+/* Player areas */
+.player-area {
+  display: flex;
+  align-items: center;
+  padding: 5px 15px;
+  height: 60px;
+  gap: 10px;
+}
+
+.player-area.opponent { background: rgba(100,0,0,0.1); }
+.player-area.mine { background: rgba(0,0,100,0.1); }
+
+.hero-portrait {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+}
+
+.hero-portrait.human-hero { border-color: #c9a84c; background: #2a1f0e; }
+.hero-portrait.demon-hero { border-color: #c0392b; background: #2e0a0a; }
+
+.hero-portrait.targetable {
+  animation: targetPulse 1s infinite;
+  cursor: crosshair;
+}
+
+@keyframes targetPulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(255,0,0,0.5); }
+  50% { box-shadow: 0 0 15px rgba(255,0,0,0.8); }
+}
+
+.hero-hp {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #c0392b;
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.55em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border: 2px solid #1a1a2e;
+}
+
+.hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-name {
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.mana-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75em;
+}
+
+.mana-crystal {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #2980b9;
+  background: transparent;
+}
+
+.mana-crystal.filled {
+  background: #3498db;
+  box-shadow: 0 0 4px rgba(52,152,219,0.5);
+}
+
+.mana-text {
+  color: #3498db;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.hero-power-btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 2px solid #555;
+  background: rgba(255,255,255,0.05);
+  color: #ccc;
+  font-size: 0.75em;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.hero-power-btn:hover:not(.used):not(.disabled) {
+  background: rgba(255,255,255,0.15);
+  border-color: #3498db;
+}
+
+.hero-power-btn.used {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hero-power-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.deck-count {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 5px;
+  font-size: 0.8em;
+  color: #888;
+}
+
+/* Hand area */
+.hand-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 5px;
+  min-height: 120px;
+  gap: 3px;
+  overflow-x: auto;
+}
+
+.hand-area.opponent-hand {
+  min-height: 60px;
+}
+
+/* Field area */
+.field-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  gap: 5px;
+  padding: 5px;
+  min-height: 100px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.field-area.opponent-field {
+  background: rgba(200,0,0,0.03);
+}
+
+.field-area.my-field {
+  background: rgba(0,0,200,0.03);
+}
+
+/* Card styles */
+.card {
+  width: 80px;
+  min-width: 80px;
+  height: 110px;
+  border-radius: 8px;
+  border: 2px solid #555;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+  font-size: 0.7em;
+}
+
+.card.in-hand:hover {
+  transform: translateY(-15px) scale(1.1);
+  z-index: 100;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+}
+
+.card.playable {
+  border-color: #2ecc71;
+  box-shadow: 0 0 8px rgba(46,204,113,0.3);
+}
+
+.card.human-card {
+  background: linear-gradient(180deg, #3d2e10, #2a1f0e);
+  border-color: #8b7340;
+}
+
+.card.demon-card {
+  background: linear-gradient(180deg, #3d1010, #2e0a0a);
+  border-color: #8b3030;
+}
+
+.card.spell-card {
+  border-style: dashed;
+}
+
+.card-back {
+  width: 55px;
+  min-width: 55px;
+  height: 75px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2c3e50, #34495e);
+  border: 2px solid #4a6785;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
+}
+
+.card-mana {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2980b9;
+  color: #fff;
+  font-size: 0.9em;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  border: 1px solid #1a5276;
+}
+
+.card-art {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2em;
+  padding-top: 8px;
+}
+
+.card-name {
+  text-align: center;
+  font-size: 0.8em;
+  font-weight: bold;
+  padding: 1px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-desc {
+  text-align: center;
+  font-size: 0.65em;
+  color: #aaa;
+  padding: 1px 3px;
+  min-height: 20px;
+  line-height: 1.2;
+}
+
+.card-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px 2px;
+}
+
+.card-attack, .card-health {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.85em;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-attack {
+  background: #e67e22;
+  color: #fff;
+  border: 1px solid #d35400;
+}
+
+.card-health {
+  background: #c0392b;
+  color: #fff;
+  border: 1px solid #96281b;
+}
+
+/* Field minion */
+.field-minion {
+  width: 75px;
+  min-width: 75px;
+  height: 95px;
+  border-radius: 8px;
+  border: 2px solid #555;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+  font-size: 0.7em;
+}
+
+.field-minion.human-card {
+  background: linear-gradient(180deg, #3d2e10, #2a1f0e);
+}
+
+.field-minion.demon-card {
+  background: linear-gradient(180deg, #3d1010, #2e0a0a);
+}
+
+.field-minion.can-attack {
+  border-color: #2ecc71;
+  box-shadow: 0 0 8px rgba(46,204,113,0.4);
+  cursor: pointer;
+}
+
+.field-minion.taunt {
+  border-color: #f1c40f;
+  border-width: 3px;
+  box-shadow: 0 0 8px rgba(241,196,15,0.3);
+}
+
+.field-minion.targetable {
+  animation: targetPulse 1s infinite;
+  cursor: crosshair;
+}
+
+.field-minion.selected {
+  border-color: #e74c3c;
+  box-shadow: 0 0 15px rgba(231,76,60,0.6);
+  transform: scale(1.05);
+}
+
+.field-minion .minion-art {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8em;
+}
+
+.field-minion .minion-name {
+  text-align: center;
+  font-size: 0.7em;
+  padding: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.field-minion .minion-keywords {
+  text-align: center;
+  font-size: 0.6em;
+  color: #f1c40f;
+  height: 12px;
+}
+
+.field-minion .minion-stats {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px 2px;
+}
+
+.field-minion .minion-attack, .field-minion .minion-health {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 0.85em;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.field-minion .minion-attack {
+  background: #e67e22;
+  color: #fff;
+}
+
+.field-minion .minion-health {
+  background: #c0392b;
+  color: #fff;
+}
+
+.field-minion .minion-health.damaged {
+  background: #e74c3c;
+}
+
+/* End turn button */
+.end-turn-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 12px 20px;
+  background: linear-gradient(180deg, #e67e22, #d35400);
+  border: 2px solid #e67e22;
+  color: #fff;
+  font-size: 1em;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.end-turn-btn:hover {
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 0 0 15px rgba(230,126,34,0.5);
+}
+
+.end-turn-btn.disabled {
+  background: #555;
+  border-color: #555;
+  cursor: not-allowed;
+}
+
+/* Center divider */
+.board-divider {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  position: relative;
+}
+
+/* Turn transition overlay */
+#turn-transition {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 1000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#turn-transition h2 {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+}
+
+#turn-transition p {
+  color: #aaa;
+  margin-bottom: 30px;
+}
+
+#turn-transition button {
+  padding: 15px 40px;
+  font-size: 1.2em;
+  background: #e67e22;
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Game over overlay */
+#game-over {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 1000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-over h2 {
+  font-size: 3em;
+  margin-bottom: 10px;
+}
+
+#game-over .result-text {
+  font-size: 1.5em;
+  margin-bottom: 30px;
+  color: #aaa;
+}
+
+#game-over button {
+  padding: 15px 40px;
+  font-size: 1.2em;
+  background: #e67e22;
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 5px;
+}
+
+/* Log area */
+.log-area {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 180px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.5);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 0.7em;
+  color: #888;
+  z-index: 5;
+}
+
+.log-area .log-entry {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Damage animation */
+.damage-flash {
+  animation: damageFlash 0.3s ease-out;
+}
+
+@keyframes damageFlash {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(3) hue-rotate(350deg); }
+  100% { filter: brightness(1); }
+}
+
+.heal-flash {
+  animation: healFlash 0.3s ease-out;
+}
+
+@keyframes healFlash {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(2) hue-rotate(90deg); }
+  100% { filter: brightness(1); }
+}
+
+/* Floating damage text */
+.floating-text {
+  position: absolute;
+  font-size: 1.5em;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 999;
+  animation: floatUp 1s ease-out forwards;
+}
+
+.floating-text.damage { color: #e74c3c; }
+.floating-text.heal { color: #2ecc71; }
+
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(1.5); }
+}
+
+/* Card tooltip */
+.card-tooltip {
+  display: none;
+  position: fixed;
+  background: rgba(20,20,40,0.97);
+  border: 2px solid #666;
+  border-radius: 10px;
+  padding: 12px;
+  z-index: 500;
+  width: 200px;
+  pointer-events: none;
+}
+
+.card-tooltip .tooltip-name {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-bottom: 5px;
+}
+
+.card-tooltip .tooltip-desc {
+  color: #ccc;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.card-tooltip .tooltip-stats {
+  margin-top: 8px;
+  color: #aaa;
+  font-size: 0.85em;
+}
+
+/* Attack arrow */
+.attack-arrow {
+  position: fixed;
+  pointer-events: none;
+  z-index: 800;
+}
+
+.attack-line {
+  stroke: #e74c3c;
+  stroke-width: 3;
+  stroke-dasharray: 8, 4;
+  animation: dashMove 0.5s linear infinite;
+}
+
+@keyframes dashMove {
+  to { stroke-dashoffset: -12; }
+}
+
+/* Coin card special */
+.card.coin-card {
+  border-color: #f1c40f;
+  background: linear-gradient(180deg, #4a3f10, #2a2508);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card { width: 65px; min-width: 65px; height: 95px; font-size: 0.6em; }
+  .field-minion { width: 60px; min-width: 60px; height: 80px; font-size: 0.6em; }
+  .card-back { width: 40px; min-width: 40px; height: 60px; }
+  .log-area { display: none; }
+}
+
+/* Spell target selection */
+.spell-target-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 50;
+}
+
+.cancel-target {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 30px;
+  background: #c0392b;
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 60;
+  font-size: 1em;
+  display: none;
+}
+
+/* Card dictionary */
+.dict-toggle {
+  position: absolute;
+  left: 15px;
+  bottom: 130px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid #8e44ad;
+  background: rgba(142,68,173,0.2);
+  color: #c39bd3;
+  font-size: 1.3em;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+
+.dict-toggle:hover {
+  background: rgba(142,68,173,0.45);
+  color: #fff;
+  transform: scale(1.1);
+  box-shadow: 0 0 12px rgba(142,68,173,0.5);
+}
+
+.dict-toggle.open {
+  background: #8e44ad;
+  color: #fff;
+  border-color: #a569bd;
+}
+
+#card-dictionary {
+  display: none;
+  position: absolute;
+  left: 10px;
+  bottom: 180px;
+  width: 320px;
+  max-height: 55vh;
+  background: rgba(15,12,30,0.97);
+  border: 2px solid #8e44ad;
+  border-radius: 12px;
+  z-index: 20;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -5px 30px rgba(142,68,173,0.3);
+  animation: dictSlideUp 0.25s ease-out;
+}
+
+@keyframes dictSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dict-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(142,68,173,0.15);
+  border-bottom: 1px solid rgba(142,68,173,0.3);
+  flex-shrink: 0;
+}
+
+.dict-header h2 {
+  font-size: 1em;
+  margin: 0;
+}
+
+.dict-header .dict-subtitle {
+  color: #888;
+  font-size: 0.75em;
+  margin: 0;
+}
+
+.dict-close-x {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: #aaa;
+  font-size: 1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.dict-close-x:hover {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.dict-body {
+  overflow-y: auto;
+  padding: 10px;
+  flex: 1;
+}
+
+.dict-section {
+  margin-bottom: 15px;
+}
+
+.dict-section h3 {
+  font-size: 0.85em;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: #c39bd3;
+}
+
+.dict-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.dict-card {
+  border-radius: 8px;
+  border: 1px solid #444;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75em;
+  transition: background 0.2s;
+  cursor: default;
+}
+
+.dict-card:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.dict-card.human-card {
+  background: rgba(60,45,16,0.5);
+  border-color: rgba(139,115,64,0.4);
+}
+
+.dict-card.demon-card {
+  background: rgba(60,16,16,0.5);
+  border-color: rgba(139,48,48,0.4);
+}
+
+.dict-card .dc-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 36px;
+}
+
+.dict-card .dc-emoji {
+  font-size: 1.5em;
+  line-height: 1;
+}
+
+.dict-card .dc-mana {
+  background: #2980b9;
+  color: #fff;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+
+.dict-card .dc-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.dict-card .dc-name {
+  font-weight: bold;
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dict-card .dc-desc {
+  color: #999;
+  font-size: 0.75em;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.dict-card .dc-stats {
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.dict-card .dc-atk, .dict-card .dc-hp {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8em;
+}
+
+.dict-card .dc-atk {
+  background: #e67e22;
+  color: #fff;
+}
+
+.dict-card .dc-hp {
+  background: #c0392b;
+  color: #fff;
+}
+</style>
+</head>
+<body>
+
+<!-- MAIN MENU -->
+<div id="main-menu">
+  <h1>인간 vs 악마</h1>
+  <p class="subtitle">카드 배틀</p>
+  <button class="menu-btn" onclick="startGame('ai')">AI 대전</button>
+  <button class="menu-btn" onclick="startGame('pvp')">2인 대전</button>
+</div>
+
+<!-- FACTION SELECT -->
+<div id="faction-select">
+  <h2>세력을 선택하세요</h2>
+  <div class="faction-cards">
+    <div class="faction-card human" onclick="selectFaction('human')">
+      <div class="faction-icon">⚔️</div>
+      <h3>인간</h3>
+      <p>정의로운 기사단과 신성한 마법의 힘으로 악을 물리치세요.<br><br>🛡️ 영웅 능력: 체력 2 회복</p>
+    </div>
+    <div class="faction-card demon" onclick="selectFaction('demon')">
+      <div class="faction-icon">👿</div>
+      <h3>악마</h3>
+      <p>지옥의 군단을 이끌고 어둠의 힘으로 세상을 지배하세요.<br><br>🔥 영웅 능력: 적에게 2 데미지</p>
+    </div>
+  </div>
+  <button class="back-btn" onclick="showMainMenu()">뒤로</button>
+</div>
+
+<!-- GAME BOARD -->
+<div id="game-board">
+  <div class="top-bar">
+    <span class="game-info" id="turn-info">턴 1</span>
+    <span class="game-info" id="game-mode-info"></span>
+    <span class="menu-link" onclick="showMainMenu()">메뉴</span>
+  </div>
+
+  <!-- Opponent area -->
+  <div class="player-area opponent">
+    <div class="hero-portrait" id="opponent-hero" onclick="targetHero('opponent')">
+      <span id="opponent-hero-icon">👿</span>
+      <div class="hero-hp" id="opponent-hp">30</div>
+    </div>
+    <div class="hero-info">
+      <span class="hero-name" id="opponent-name">악마</span>
+      <div class="mana-bar" id="opponent-mana-bar"></div>
+    </div>
+    <div class="hero-power-btn disabled" id="opponent-power-btn">영웅 능력</div>
+    <div class="deck-count" id="opponent-deck-count">덱: 27</div>
+  </div>
+
+  <div class="hand-area opponent-hand" id="opponent-hand"></div>
+
+  <div class="field-area opponent-field" id="opponent-field"></div>
+
+  <div class="board-divider"></div>
+  <button class="end-turn-btn" id="end-turn-btn" onclick="endTurn()">턴 종료</button>
+
+  <div class="field-area my-field" id="my-field"></div>
+
+  <div class="hand-area" id="my-hand"></div>
+
+  <div class="player-area mine">
+    <div class="hero-portrait" id="my-hero" onclick="targetHero('mine')">
+      <span id="my-hero-icon">⚔️</span>
+      <div class="hero-hp" id="my-hp">30</div>
+    </div>
+    <div class="hero-info">
+      <span class="hero-name" id="my-name">인간</span>
+      <div class="mana-bar" id="my-mana-bar"></div>
+    </div>
+    <button class="hero-power-btn" id="my-power-btn" onclick="useHeroPower()">영웅 능력 (2)</button>
+    <div class="deck-count" id="my-deck-count">덱: 27</div>
+  </div>
+
+  <div class="log-area" id="game-log"></div>
+
+  <!-- Dictionary toggle + panel -->
+  <button class="dict-toggle" id="dict-toggle" onclick="toggleDictionary()">📖</button>
+  <div id="card-dictionary">
+    <div class="dict-header">
+      <div>
+        <h2 id="dict-title">카드 도감</h2>
+        <p class="dict-subtitle" id="dict-subtitle"></p>
+      </div>
+      <button class="dict-close-x" onclick="toggleDictionary()">✕</button>
+    </div>
+    <div class="dict-body" id="dict-content"></div>
+  </div>
+</div>
+
+<!-- Turn transition (for PVP) -->
+<div id="turn-transition">
+  <h2 id="transition-text"></h2>
+  <p>화면을 상대에게 넘겨주세요</p>
+  <button onclick="confirmTurnTransition()">준비 완료</button>
+</div>
+
+<!-- Game Over -->
+<div id="game-over">
+  <h2 id="game-over-title"></h2>
+  <p class="result-text" id="game-over-text"></p>
+  <button onclick="showMainMenu()">메인 메뉴</button>
+  <button onclick="rematch()">재대전</button>
+</div>
+
+<!-- Card Dictionary -->
+<div id="card-dictionary">
+  <h2 id="dict-title">카드 도감</h2>
+  <p class="dict-subtitle" id="dict-subtitle"></p>
+  <div id="dict-content"></div>
+  <button class="dict-close-btn" onclick="closeDictionary()">닫기</button>
+</div>
+
+<!-- Cancel target button -->
+<button class="cancel-target" id="cancel-target-btn" onclick="cancelTargeting()">취소 (우클릭)</button>
+
+<!-- Tooltip -->
+<div class="card-tooltip" id="card-tooltip">
+  <div class="tooltip-name"></div>
+  <div class="tooltip-desc"></div>
+  <div class="tooltip-stats"></div>
+</div>
+
+<!-- SVG for attack arrow -->
+<svg class="attack-arrow" id="attack-arrow" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:800;">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#e74c3c" />
+    </marker>
+  </defs>
+  <line id="arrow-line" class="attack-line" x1="0" y1="0" x2="0" y2="0" marker-end="url(#arrowhead)" />
+</svg>
+
+<script>
+// ===== CARD DEFINITIONS =====
+const HUMAN_CARDS = [
+  // Minions
+  { id:'h1', name:'수련생', type:'minion', cost:1, attack:1, health:2, emoji:'🧑‍🎓', desc:'', keywords:[] },
+  { id:'h2', name:'민병대', type:'minion', cost:1, attack:2, health:1, emoji:'🧑‍🌾', desc:'', keywords:[] },
+  { id:'h3', name:'성기사', type:'minion', cost:2, attack:2, health:3, emoji:'🛡️', desc:'도발', keywords:['taunt'] },
+  { id:'h4', name:'궁수', type:'minion', cost:2, attack:3, health:1, emoji:'🏹', desc:'돌진', keywords:['rush'] },
+  { id:'h5', name:'치유사', type:'minion', cost:2, attack:1, health:3, emoji:'💚', desc:'전투 함성: 아군 영웅 체력 3 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 3); addLog(`치유사가 영웅 체력을 3 회복!`); } },
+  { id:'h6', name:'기사', type:'minion', cost:3, attack:3, health:3, emoji:'⚔️', desc:'', keywords:[] },
+  { id:'h7', name:'성전사', type:'minion', cost:3, attack:2, health:4, emoji:'✝️', desc:'도발', keywords:['taunt'] },
+  { id:'h8', name:'암살자', type:'minion', cost:3, attack:4, health:2, emoji:'🗡️', desc:'돌진', keywords:['rush'] },
+  { id:'h9', name:'대마법사', type:'minion', cost:4, attack:3, health:5, emoji:'🧙', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
+  { id:'h10', name:'성기사 대장', type:'minion', cost:4, attack:4, health:4, emoji:'🏰', desc:'도발', keywords:['taunt'] },
+  { id:'h11', name:'빛의 수호자', type:'minion', cost:5, attack:4, health:6, emoji:'👼', desc:'생명력 흡수', keywords:['lifesteal'] },
+  { id:'h12', name:'용기사', type:'minion', cost:6, attack:5, health:5, emoji:'🐉', desc:'돌진', keywords:['rush'] },
+  { id:'h13', name:'대천사', type:'minion', cost:7, attack:6, health:7, emoji:'😇', desc:'전투 함성: 아군 영웅 체력 5 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 5); addLog(`대천사가 영웅 체력을 5 회복!`); } },
+  // Spells
+  { id:'h14', name:'신성한 빛', type:'spell', cost:1, emoji:'✨', desc:'아군 캐릭터 하나의 체력 4 회복', target:'friendly_any', effect:'heal', value:4 },
+  { id:'h15', name:'천벌', type:'spell', cost:3, emoji:'⚡', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
+  { id:'h16', name:'신의 분노', type:'spell', cost:5, emoji:'🌩️', desc:'적 미니언 전체에게 3 데미지', target:'none', effect:'aoe_damage', value:3 },
+  { id:'h17', name:'축복', type:'spell', cost:2, emoji:'🙏', desc:'아군 미니언 하나에게 +2/+2', target:'friendly_minion', effect:'buff', value:2 },
+];
+
+const DEMON_CARDS = [
+  // Minions
+  { id:'d1', name:'임프', type:'minion', cost:1, attack:2, health:1, emoji:'👹', desc:'', keywords:[] },
+  { id:'d2', name:'박쥐', type:'minion', cost:1, attack:1, health:2, emoji:'🦇', desc:'', keywords:[] },
+  { id:'d3', name:'지옥 감시자', type:'minion', cost:2, attack:2, health:3, emoji:'👁️', desc:'도발', keywords:['taunt'] },
+  { id:'d4', name:'그림자 자객', type:'minion', cost:2, attack:3, health:1, emoji:'🌑', desc:'돌진', keywords:['rush'] },
+  { id:'d5', name:'흡혈귀', type:'minion', cost:2, attack:1, health:3, emoji:'🧛', desc:'전투 함성: 적 영웅에게 2 데미지', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 2; addLog(`흡혈귀가 적 영웅에게 2 데미지!`); } },
+  { id:'d6', name:'서큐버스', type:'minion', cost:3, attack:3, health:3, emoji:'😈', desc:'', keywords:[] },
+  { id:'d7', name:'석상 수호자', type:'minion', cost:3, attack:2, health:4, emoji:'🗿', desc:'도발', keywords:['taunt'] },
+  { id:'d8', name:'지옥 사냥개', type:'minion', cost:3, attack:4, health:2, emoji:'🐕‍🦺', desc:'돌진', keywords:['rush'] },
+  { id:'d9', name:'악마 마법사', type:'minion', cost:4, attack:3, health:5, emoji:'🔮', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
+  { id:'d10', name:'지옥 수문장', type:'minion', cost:4, attack:4, health:4, emoji:'🚪', desc:'도발', keywords:['taunt'] },
+  { id:'d11', name:'영혼 흡수자', type:'minion', cost:5, attack:4, health:6, emoji:'👻', desc:'생명력 흡수', keywords:['lifesteal'] },
+  { id:'d12', name:'지옥불 정령', type:'minion', cost:6, attack:5, health:5, emoji:'🔥', desc:'돌진', keywords:['rush'] },
+  { id:'d13', name:'악마 군주', type:'minion', cost:7, attack:6, health:7, emoji:'👿', desc:'전투 함성: 적 영웅에게 3 데미지', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 3; addLog(`악마 군주가 적 영웅에게 3 데미지!`); } },
+  // Spells
+  { id:'d14', name:'어둠의 화살', type:'spell', cost:1, emoji:'🏴', desc:'적 캐릭터 하나에게 3 데미지', target:'enemy_any', effect:'damage', value:3 },
+  { id:'d15', name:'영혼 불꽃', type:'spell', cost:3, emoji:'💀', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
+  { id:'d16', name:'지옥의 불길', type:'spell', cost:5, emoji:'🌋', desc:'적 미니언 전체에게 3 데미지', target:'none', effect:'aoe_damage', value:3 },
+  { id:'d17', name:'어둠 강화', type:'spell', cost:2, emoji:'💪', desc:'아군 미니언 하나에게 +2/+2', target:'friendly_minion', effect:'buff', value:2 },
+];
+
+const COIN_CARD = { id:'coin', name:'동전', type:'spell', cost:0, emoji:'🪙', desc:'이번 턴 마나 1 획득', target:'none', effect:'coin', value:1 };
+
+// ===== GAME STATE =====
+let gameState = null;
+let gameMode = 'ai'; // 'ai' or 'pvp'
+let selectedFaction = 'human';
+let selectedAttacker = null;
+let targetingSpell = null;
+let battlecryTarget = null;
+let logs = [];
+
+function createDeck(faction) {
+  const cards = faction === 'human' ? HUMAN_CARDS : DEMON_CARDS;
+  let allCards = [];
+  // 2 copies of each card
+  cards.forEach(c => {
+    allCards.push({...c, uid: Math.random().toString(36).substr(2,9)});
+    allCards.push({...c, uid: Math.random().toString(36).substr(2,9)});
+  });
+
+  // Group cards by cost tiers
+  const tiers = [
+    allCards.filter(c => c.cost <= 2),  // 초반 (1-2 코스트)
+    allCards.filter(c => c.cost === 3),  // 중초반 (3 코스트)
+    allCards.filter(c => c.cost === 4),  // 중반 (4 코스트)
+    allCards.filter(c => c.cost >= 5),   // 후반 (5+ 코스트)
+  ];
+
+  // Shuffle within each tier
+  tiers.forEach(tier => {
+    for (let i = tier.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tier[i], tier[j]] = [tier[j], tier[i]];
+    }
+  });
+
+  // Build deck: high cost at bottom (index 0), low cost on top (end)
+  // deck.pop() draws from end, so low cost cards are drawn first
+  let deck = [...tiers[3], ...tiers[2], ...tiers[1], ...tiers[0]];
+
+  // Add slight randomness: swap ~20% of adjacent cards to avoid being too predictable
+  for (let i = 0; i < deck.length - 1; i++) {
+    if (Math.random() < 0.2) {
+      [deck[i], deck[i+1]] = [deck[i+1], deck[i]];
+    }
+  }
+
+  return deck;
+}
+
+function initGame() {
+  const p1Faction = selectedFaction;
+  const p2Faction = selectedFaction === 'human' ? 'demon' : 'human';
+
+  gameState = {
+    turn: 1,
+    currentPlayer: 'p1',
+    p1: {
+      faction: p1Faction,
+      hp: 30,
+      maxMana: 0,
+      mana: 0,
+      deck: createDeck(p1Faction),
+      hand: [],
+      field: [],
+      heroPowerUsed: false,
+    },
+    p2: {
+      faction: p2Faction,
+      hp: 30,
+      maxMana: 0,
+      mana: 0,
+      deck: createDeck(p2Faction),
+      hand: [],
+      field: [],
+      heroPowerUsed: false,
+    },
+    gameOver: false,
+    winner: null,
+  };
+
+  // Draw starting hands
+  for (let i = 0; i < 3; i++) drawCard('p1');
+  for (let i = 0; i < 4; i++) drawCard('p2');
+
+  // P2 gets the coin
+  gameState.p2.hand.push({...COIN_CARD, uid: 'coin_' + Math.random().toString(36).substr(2,9)});
+
+  // Start P1's turn
+  startTurn('p1');
+
+  logs = [];
+  addLog('게임 시작!');
+  addLog(`${getFactionName(p1Faction)} vs ${getFactionName(p2Faction)}`);
+}
+
+function getFactionName(f) { return f === 'human' ? '인간' : '악마'; }
+function getFactionClass(f) { return f === 'human' ? 'human-card' : 'demon-card'; }
+function getHeroClass(f) { return f === 'human' ? 'human-hero' : 'demon-hero'; }
+function getHeroEmoji(f) { return f === 'human' ? '⚔️' : '👿'; }
+function getHeroPowerName(f) { return f === 'human' ? '성스러운 회복' : '지옥불'; }
+
+function drawCard(player) {
+  const p = gameState[player];
+  if (p.deck.length === 0) {
+    // Fatigue damage
+    p.fatigue = (p.fatigue || 0) + 1;
+    p.hp -= p.fatigue;
+    addLog(`${getFactionName(p.faction)}: 덱 소진! ${p.fatigue} 피로 데미지!`);
+    checkGameOver();
+    return;
+  }
+  if (p.hand.length >= 10) {
+    const burned = p.deck.pop();
+    addLog(`${burned.name} 카드가 손이 가득 차서 불탔습니다!`);
+    return;
+  }
+  p.hand.push(p.deck.pop());
+}
+
+function startTurn(player) {
+  const p = gameState[player];
+  gameState.currentPlayer = player;
+
+  // Increase mana
+  if (p.maxMana < 10) p.maxMana++;
+  p.mana = p.maxMana;
+
+  // Reset hero power
+  p.heroPowerUsed = false;
+
+  // Reset minion attacks
+  p.field.forEach(m => {
+    m.canAttack = true;
+    m.attacksThisTurn = 0;
+  });
+
+  // Draw
+  drawCard(player);
+
+  clearSelection();
+  render();
+}
+
+function endTurn() {
+  if (gameState.gameOver) return;
+
+  const current = gameState.currentPlayer;
+  const next = current === 'p1' ? 'p2' : 'p1';
+
+  if (current === 'p1' && next === 'p2') {
+    // nothing special
+  } else {
+    gameState.turn++;
+  }
+
+  clearSelection();
+
+  if (gameMode === 'pvp') {
+    showTurnTransition(next);
+  } else {
+    startTurn(next);
+    if (next === 'p2') {
+      // AI turn
+      setTimeout(() => aiTurn(), 500);
+    }
+  }
+}
+
+// ===== CARD PLAYING =====
+function playCard(cardIndex) {
+  if (gameState.gameOver) return;
+  const player = gameState.currentPlayer;
+  if (gameMode === 'ai' && player === 'p2') return; // AI controls p2
+
+  const p = gameState[player];
+  const card = p.hand[cardIndex];
+
+  if (!card) return;
+  if (card.cost > p.mana) return;
+
+  if (card.type === 'minion') {
+    if (p.field.length >= 7) {
+      addLog('필드가 가득 찼습니다!');
+      return;
+    }
+
+    // Check if this minion has a targeted battlecry
+    if (card.battlecry_target) {
+      const opp = player === 'p1' ? 'p2' : 'p1';
+      const targets = gameState[opp].field;
+      if (targets.length > 0) {
+        // Need to select a target
+        battlecryTarget = { cardIndex, card, player };
+        highlightTargets(card.battlecry_target, player);
+        document.getElementById('cancel-target-btn').style.display = 'block';
+        return;
+      }
+    }
+
+    summonMinion(player, card, cardIndex);
+
+  } else if (card.type === 'spell') {
+    if (card.target === 'none') {
+      // No target needed
+      castSpell(player, card, cardIndex, null, null);
+    } else {
+      // Need to select target
+      targetingSpell = { cardIndex, card, player };
+      highlightTargets(card.target, player);
+      document.getElementById('cancel-target-btn').style.display = 'block';
+    }
+  }
+}
+
+function summonMinion(player, card, cardIndex) {
+  const p = gameState[player];
+
+  p.mana -= card.cost;
+  p.hand.splice(cardIndex, 1);
+
+  const minion = {
+    ...card,
+    uid: card.uid,
+    currentHealth: card.health,
+    maxHealth: card.health,
+    currentAttack: card.attack,
+    canAttack: card.keywords.includes('rush'),
+    summonedThisTurn: true,
+    attacksThisTurn: 0,
+  };
+
+  p.field.push(minion);
+  addLog(`${card.name} 소환! (${card.attack}/${card.health})`);
+
+  // Execute battlecry
+  if (card.battlecry && !card.battlecry_target) {
+    card.battlecry(gameState, player);
+  }
+
+  checkGameOver();
+  render();
+}
+
+function executeBattlecry(targetMinion) {
+  if (!battlecryTarget) return;
+
+  const { cardIndex, card, player } = battlecryTarget;
+  const p = gameState[player];
+  const opp = player === 'p1' ? 'p2' : 'p1';
+
+  // Summon first
+  summonMinion(player, card, cardIndex);
+
+  // Then deal battlecry damage
+  if (card.battlecry_damage) {
+    targetMinion.currentHealth -= card.battlecry_damage;
+    addLog(`${card.name}의 전투 함성! ${targetMinion.name}에게 ${card.battlecry_damage} 데미지!`);
+    showFloatingText(targetMinion.uid, `-${card.battlecry_damage}`, 'damage');
+
+    // Remove dead minions
+    gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
+  }
+
+  battlecryTarget = null;
+  document.getElementById('cancel-target-btn').style.display = 'none';
+  checkGameOver();
+  render();
+}
+
+function castSpell(player, card, cardIndex, targetType, target) {
+  const p = gameState[player];
+  const opp = player === 'p1' ? 'p2' : 'p1';
+
+  p.mana -= card.cost;
+  p.hand.splice(cardIndex, 1);
+
+  addLog(`${card.name} 시전!`);
+
+  switch(card.effect) {
+    case 'damage':
+      if (target === 'hero') {
+        gameState[opp].hp -= card.value;
+        addLog(`적 영웅에게 ${card.value} 데미지!`);
+        showHeroFloatingText(opp, `-${card.value}`, 'damage');
+      } else if (target && target.uid) {
+        target.currentHealth -= card.value;
+        addLog(`${target.name}에게 ${card.value} 데미지!`);
+        showFloatingText(target.uid, `-${card.value}`, 'damage');
+        // Check if target has poison - doesn't apply to spells
+        gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
+      }
+      break;
+    case 'heal':
+      if (target === 'hero') {
+        const healed = Math.min(card.value, 30 - gameState[player].hp);
+        gameState[player].hp = Math.min(30, gameState[player].hp + card.value);
+        addLog(`영웅 체력 ${healed} 회복!`);
+        showHeroFloatingText(player, `+${healed}`, 'heal');
+      } else if (target && target.uid) {
+        const healed = Math.min(card.value, target.maxHealth - target.currentHealth);
+        target.currentHealth = Math.min(target.maxHealth, target.currentHealth + card.value);
+        addLog(`${target.name} 체력 ${healed} 회복!`);
+        showFloatingText(target.uid, `+${healed}`, 'heal');
+      }
+      break;
+    case 'aoe_damage':
+      gameState[opp].field.forEach(m => {
+        m.currentHealth -= card.value;
+        showFloatingText(m.uid, `-${card.value}`, 'damage');
+      });
+      gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
+      addLog(`적 미니언 전체에게 ${card.value} 데미지!`);
+      break;
+    case 'buff':
+      if (target && target.uid) {
+        target.currentAttack += card.value;
+        target.currentHealth += card.value;
+        target.maxHealth += card.value;
+        addLog(`${target.name}에게 +${card.value}/+${card.value} 강화!`);
+        showFloatingText(target.uid, `+${card.value}/+${card.value}`, 'heal');
+      }
+      break;
+    case 'coin':
+      p.mana = Math.min(10, p.mana + 1);
+      addLog('마나 1 획득!');
+      break;
+  }
+
+  targetingSpell = null;
+  document.getElementById('cancel-target-btn').style.display = 'none';
+  checkGameOver();
+  render();
+}
+
+// ===== COMBAT =====
+function selectAttacker(minion) {
+  if (gameState.gameOver) return;
+  const player = gameState.currentPlayer;
+  if (gameMode === 'ai' && player === 'p2') return;
+
+  const p = gameState[player];
+  if (!p.field.includes(minion)) return;
+
+  if (!minion.canAttack || minion.attacksThisTurn > 0) return;
+  if (minion.summonedThisTurn && !minion.keywords.includes('rush')) return;
+
+  clearSelection();
+  selectedAttacker = minion;
+  render();
+}
+
+function attackTarget(target, targetPlayer) {
+  if (!selectedAttacker || gameState.gameOver) return;
+
+  const player = gameState.currentPlayer;
+  const opp = player === 'p1' ? 'p2' : 'p1';
+
+  if (targetPlayer !== opp) return;
+
+  // Check taunt
+  const hasTaunt = gameState[opp].field.some(m => m.keywords.includes('taunt'));
+  if (hasTaunt && target !== 'hero' && !target.keywords.includes('taunt')) {
+    addLog('도발 미니언을 먼저 공격해야 합니다!');
+    return;
+  }
+  if (hasTaunt && target === 'hero') {
+    addLog('도발 미니언을 먼저 공격해야 합니다!');
+    return;
+  }
+
+  // Rush minions can't attack hero on summon turn
+  if (selectedAttacker.summonedThisTurn && selectedAttacker.keywords.includes('rush') && target === 'hero') {
+    addLog('돌진 미니언은 소환된 턴에 영웅을 공격할 수 없습니다!');
+    return;
+  }
+
+  if (target === 'hero') {
+    // Attack hero
+    gameState[opp].hp -= selectedAttacker.currentAttack;
+    addLog(`${selectedAttacker.name}이(가) 적 영웅을 공격! ${selectedAttacker.currentAttack} 데미지!`);
+    showHeroFloatingText(opp, `-${selectedAttacker.currentAttack}`, 'damage');
+
+    // Lifesteal
+    if (selectedAttacker.keywords.includes('lifesteal')) {
+      const healed = Math.min(selectedAttacker.currentAttack, 30 - gameState[player].hp);
+      gameState[player].hp = Math.min(30, gameState[player].hp + selectedAttacker.currentAttack);
+      addLog(`생명력 흡수! ${healed} 회복!`);
+    }
+
+    selectedAttacker.canAttack = false;
+    selectedAttacker.attacksThisTurn++;
+  } else {
+    // Attack minion
+    const attacker = selectedAttacker;
+
+    addLog(`${attacker.name}이(가) ${target.name}을(를) 공격!`);
+
+    // Deal damage
+    target.currentHealth -= attacker.currentAttack;
+    attacker.currentHealth -= target.currentAttack;
+
+    showFloatingText(target.uid, `-${attacker.currentAttack}`, 'damage');
+    showFloatingText(attacker.uid, `-${target.currentAttack}`, 'damage');
+
+    // Poison
+    if (attacker.keywords.includes('poison') && target.currentHealth > 0) {
+      target.currentHealth = 0;
+      addLog(`${target.name}이(가) 독에 의해 즉사!`);
+    }
+    if (target.keywords.includes('poison') && attacker.currentHealth > 0) {
+      attacker.currentHealth = 0;
+      addLog(`${attacker.name}이(가) 독에 의해 즉사!`);
+    }
+
+    // Lifesteal
+    if (attacker.keywords.includes('lifesteal')) {
+      const healed = Math.min(attacker.currentAttack, 30 - gameState[player].hp);
+      gameState[player].hp = Math.min(30, gameState[player].hp + attacker.currentAttack);
+      if (healed > 0) addLog(`생명력 흡수! ${healed} 회복!`);
+    }
+
+    // Remove dead minions
+    gameState[player].field = gameState[player].field.filter(m => m.currentHealth > 0);
+    gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
+
+    attacker.canAttack = false;
+    attacker.attacksThisTurn++;
+  }
+
+  clearSelection();
+  checkGameOver();
+  render();
+}
+
+function targetHero(side) {
+  if (gameState.gameOver) return;
+  const player = gameState.currentPlayer;
+  const opp = player === 'p1' ? 'p2' : 'p1';
+
+  // If selecting target for a spell
+  if (targetingSpell) {
+    const { card, cardIndex } = targetingSpell;
+    if (card.target === 'enemy_any' && side === (player === 'p1' ? 'opponent' : 'mine')) {
+      castSpell(player, card, cardIndex, 'enemy_hero', 'hero');
+    } else if (card.target === 'friendly_any' && side === (player === 'p1' ? 'mine' : 'opponent')) {
+      castSpell(player, card, cardIndex, 'friendly_hero', 'hero');
+    }
+    return;
+  }
+
+  // If attacking with a minion
+  if (selectedAttacker) {
+    const targetPlayer = side === 'opponent' ? (player === 'p1' ? 'p2' : 'p1') : player;
+    if (targetPlayer === opp) {
+      attackTarget('hero', opp);
+    }
+  }
+}
+
+// ===== HERO POWER =====
+function useHeroPower() {
+  if (gameState.gameOver) return;
+  const player = gameState.currentPlayer;
+  if (gameMode === 'ai' && player === 'p2') return;
+
+  const p = gameState[player];
+  const opp = player === 'p1' ? 'p2' : 'p1';
+
+  if (p.heroPowerUsed || p.mana < 2) return;
+
+  p.mana -= 2;
+  p.heroPowerUsed = true;
+
+  if (p.faction === 'human') {
+    const healed = Math.min(2, 30 - p.hp);
+    p.hp = Math.min(30, p.hp + 2);
+    addLog(`영웅 능력: 체력 ${healed} 회복!`);
+    showHeroFloatingText(player, `+${healed}`, 'heal');
+  } else {
+    gameState[opp].hp -= 2;
+    addLog(`영웅 능력: 적 영웅에게 2 데미지!`);
+    showHeroFloatingText(opp, `-2`, 'damage');
+  }
+
+  checkGameOver();
+  render();
+}
+
+// ===== TARGETING =====
+function highlightTargets(targetType, player) {
+  const opp = player === 'p1' ? 'p2' : 'p1';
+  render(); // re-render to show targeting state
+}
+
+function cancelTargeting() {
+  targetingSpell = null;
+  battlecryTarget = null;
+  document.getElementById('cancel-target-btn').style.display = 'none';
+  clearSelection();
+  render();
+}
+
+function clearSelection() {
+  selectedAttacker = null;
+  targetingSpell = null;
+  battlecryTarget = null;
+  document.getElementById('cancel-target-btn').style.display = 'none';
+}
+
+// ===== GAME OVER =====
+function checkGameOver() {
+  if (gameState.p1.hp <= 0) {
+    gameState.gameOver = true;
+    gameState.winner = 'p2';
+    setTimeout(() => showGameOver(), 500);
+  } else if (gameState.p2.hp <= 0) {
+    gameState.gameOver = true;
+    gameState.winner = 'p1';
+    setTimeout(() => showGameOver(), 500);
+  }
+}
+
+function showGameOver() {
+  const overlay = document.getElementById('game-over');
+  const title = document.getElementById('game-over-title');
+  const text = document.getElementById('game-over-text');
+
+  if (gameMode === 'ai') {
+    if (gameState.winner === 'p1') {
+      title.textContent = '승리!';
+      title.style.color = '#f1c40f';
+      text.textContent = '적 영웅을 쓰러뜨렸습니다!';
+    } else {
+      title.textContent = '패배...';
+      title.style.color = '#e74c3c';
+      text.textContent = '영웅이 쓰러졌습니다...';
+    }
+  } else {
+    const winFaction = gameState[gameState.winner].faction;
+    title.textContent = `${getFactionName(winFaction)} 승리!`;
+    title.style.color = '#f1c40f';
+    text.textContent = `${getFactionName(winFaction)} 진영이 승리했습니다!`;
+  }
+
+  overlay.style.display = 'flex';
+}
+
+// ===== PVP TURN TRANSITION =====
+function showTurnTransition(nextPlayer) {
+  const overlay = document.getElementById('turn-transition');
+  const text = document.getElementById('transition-text');
+  const faction = gameState[nextPlayer].faction;
+  text.textContent = `${getFactionName(faction)} 플레이어 차례`;
+  overlay.style.display = 'flex';
+}
+
+function confirmTurnTransition() {
+  document.getElementById('turn-transition').style.display = 'none';
+  const next = gameState.currentPlayer === 'p1' ? 'p2' : 'p1';
+  startTurn(next);
+}
+
+// ===== AI =====
+function aiTurn() {
+  if (gameState.gameOver || gameState.currentPlayer !== 'p2') return;
+
+  const p = gameState.p2;
+  const opp = gameState.p1;
+
+  // Simple AI: play cards, attack, use hero power
+  let actions = [];
+
+  // 1. Play cards (sorted by cost descending for efficiency)
+  let playableCards = p.hand
+    .map((c, i) => ({card: c, index: i}))
+    .filter(({card}) => card.cost <= p.mana)
+    .sort((a, b) => b.card.cost - a.card.cost);
+
+  for (const {card, index} of playableCards) {
+    if (card.cost > p.mana) continue;
+
+    if (card.type === 'minion' && p.field.length < 7) {
+      // Play minion
+      if (card.battlecry_target === 'enemy_minion' && opp.field.length > 0) {
+        // Find best target for battlecry
+        const target = opp.field.reduce((best, m) => {
+          if (m.currentHealth <= card.battlecry_damage) return m; // Kill target
+          return best || m;
+        }, null) || opp.field[0];
+
+        const ci = p.hand.indexOf(card);
+        if (ci >= 0) {
+          summonMinion('p2', card, ci);
+          if (target) {
+            target.currentHealth -= card.battlecry_damage;
+            addLog(`${card.name}의 전투 함성! ${target.name}에게 ${card.battlecry_damage} 데미지!`);
+            opp.field = opp.field.filter(m => m.currentHealth > 0);
+          }
+        }
+      } else {
+        const ci = p.hand.indexOf(card);
+        if (ci >= 0) summonMinion('p2', card, ci);
+      }
+    } else if (card.type === 'spell') {
+      const ci = p.hand.indexOf(card);
+      if (ci < 0) continue;
+
+      if (card.effect === 'aoe_damage') {
+        if (opp.field.length >= 2) {
+          castSpell('p2', card, ci, null, null);
+        }
+      } else if (card.effect === 'damage') {
+        if (card.target === 'enemy_minion' && opp.field.length > 0) {
+          // Target highest health minion that can be killed, or highest attack
+          const target = opp.field.sort((a, b) => {
+            if (a.currentHealth <= card.value && b.currentHealth > card.value) return -1;
+            if (b.currentHealth <= card.value && a.currentHealth > card.value) return 1;
+            return b.currentAttack - a.currentAttack;
+          })[0];
+          castSpell('p2', card, ci, 'minion', target);
+        } else if (card.target === 'enemy_any') {
+          // Prefer killing minions, otherwise go face
+          const killable = opp.field.find(m => m.currentHealth <= card.value);
+          if (killable) {
+            castSpell('p2', card, ci, 'minion', killable);
+          } else if (opp.hp <= card.value) {
+            castSpell('p2', card, ci, 'hero', 'hero');
+          } else if (opp.field.length > 0) {
+            castSpell('p2', card, ci, 'minion', opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0]);
+          } else {
+            castSpell('p2', card, ci, 'hero', 'hero');
+          }
+        }
+      } else if (card.effect === 'buff' && p.field.length > 0) {
+        const target = p.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+        castSpell('p2', card, ci, 'minion', target);
+      } else if (card.effect === 'heal') {
+        if (p.hp < 20 && card.target === 'friendly_any') {
+          castSpell('p2', card, ci, 'hero', 'hero');
+        }
+      } else if (card.effect === 'coin') {
+        if (p.mana < p.maxMana) {
+          castSpell('p2', card, ci, null, null);
+        }
+      }
+    }
+
+    // Recalculate after each card played
+    render();
+  }
+
+  // 2. Use hero power if possible
+  if (!p.heroPowerUsed && p.mana >= 2) {
+    p.mana -= 2;
+    p.heroPowerUsed = true;
+    if (p.faction === 'human') {
+      p.hp = Math.min(30, p.hp + 2);
+      addLog('AI 영웅 능력: 체력 2 회복!');
+    } else {
+      opp.hp -= 2;
+      addLog('AI 영웅 능력: 적 영웅에게 2 데미지!');
+    }
+    checkGameOver();
+    render();
+  }
+
+  // 3. Attack with minions
+  setTimeout(() => {
+    aiAttack();
+  }, 300);
+}
+
+function aiAttack() {
+  if (gameState.gameOver) return;
+
+  const p = gameState.p2;
+  const opp = gameState.p1;
+
+  const attackers = p.field.filter(m => {
+    if (m.attacksThisTurn > 0) return false;
+    if (m.summonedThisTurn && !m.keywords.includes('rush')) return false;
+    return true;
+  });
+
+  const hasTaunt = opp.field.some(m => m.keywords.includes('taunt'));
+
+  for (const attacker of attackers) {
+    if (gameState.gameOver) break;
+
+    selectedAttacker = attacker;
+
+    if (hasTaunt) {
+      const tauntMinions = opp.field.filter(m => m.keywords.includes('taunt'));
+      if (tauntMinions.length > 0) {
+        // Attack taunt minion with best trade
+        const target = tauntMinions.sort((a, b) => {
+          const aTradeValue = (a.currentHealth <= attacker.currentAttack ? a.currentAttack : 0);
+          const bTradeValue = (b.currentHealth <= attacker.currentAttack ? b.currentAttack : 0);
+          return bTradeValue - aTradeValue;
+        })[0];
+        attackTarget(target, 'p1');
+        continue;
+      }
+    }
+
+    // Check for lethal
+    if (opp.hp <= attacker.currentAttack && !(attacker.summonedThisTurn && attacker.keywords.includes('rush'))) {
+      attackTarget('hero', 'p1');
+      continue;
+    }
+
+    // Look for favorable trades
+    const killable = opp.field.filter(m => m.currentHealth <= attacker.currentAttack)
+      .sort((a, b) => b.currentAttack - a.currentAttack);
+
+    if (killable.length > 0 && killable[0].currentAttack < attacker.currentHealth) {
+      attackTarget(killable[0], 'p1');
+      continue;
+    }
+
+    // If rush minion, must attack minion
+    if (attacker.summonedThisTurn && attacker.keywords.includes('rush')) {
+      if (opp.field.length > 0) {
+        const target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+        attackTarget(target, 'p1');
+      }
+      continue;
+    }
+
+    // Go face
+    if (opp.field.length === 0 || attacker.currentAttack >= 3) {
+      attackTarget('hero', 'p1');
+    } else if (opp.field.length > 0) {
+      const target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+      attackTarget(target, 'p1');
+    }
+  }
+
+  selectedAttacker = null;
+
+  setTimeout(() => {
+    if (!gameState.gameOver) {
+      endTurn();
+    }
+  }, 300);
+}
+
+// ===== RENDERING =====
+function render() {
+  if (!gameState) return;
+
+  const player = gameState.currentPlayer;
+  const isP1View = gameMode === 'ai' || player === 'p1';
+
+  const myKey = isP1View ? 'p1' : 'p2';
+  const oppKey = isP1View ? 'p2' : 'p1';
+  const my = gameState[myKey];
+  const opp = gameState[oppKey];
+
+  // Turn info
+  document.getElementById('turn-info').textContent = `턴 ${gameState.turn}`;
+  document.getElementById('game-mode-info').textContent =
+    gameMode === 'ai' ? 'AI 대전' : `2인 대전 - ${getFactionName(gameState[player].faction)} 차례`;
+
+  // Hero portraits
+  const myHero = document.getElementById('my-hero');
+  const oppHero = document.getElementById('opponent-hero');
+  myHero.className = `hero-portrait ${getHeroClass(my.faction)}`;
+  oppHero.className = `hero-portrait ${getHeroClass(opp.faction)}`;
+
+  document.getElementById('my-hero-icon').textContent = getHeroEmoji(my.faction);
+  document.getElementById('opponent-hero-icon').textContent = getHeroEmoji(opp.faction);
+  document.getElementById('my-hp').textContent = my.hp;
+  document.getElementById('opponent-hp').textContent = opp.hp;
+  document.getElementById('my-name').textContent = getFactionName(my.faction);
+  document.getElementById('opponent-name').textContent = getFactionName(opp.faction);
+
+  // HP color
+  document.getElementById('my-hp').style.background = my.hp <= 10 ? '#e74c3c' : '#c0392b';
+  document.getElementById('opponent-hp').style.background = opp.hp <= 10 ? '#e74c3c' : '#c0392b';
+
+  // Mana bars
+  renderManaBar('my-mana-bar', my);
+  renderManaBar('opponent-mana-bar', opp);
+
+  // Deck counts
+  document.getElementById('my-deck-count').textContent = `덱: ${my.deck.length}`;
+  document.getElementById('opponent-deck-count').textContent = `덱: ${opp.deck.length}`;
+
+  // Hero power buttons
+  const myPowerBtn = document.getElementById('my-power-btn');
+  const oppPowerBtn = document.getElementById('opponent-power-btn');
+
+  const isMyTurn = (gameMode === 'ai' && player === 'p1' && myKey === 'p1') ||
+                   (gameMode === 'pvp' && myKey === player);
+
+  myPowerBtn.textContent = `${getHeroPowerName(my.faction)} (2)`;
+  if (my.heroPowerUsed) {
+    myPowerBtn.className = 'hero-power-btn used';
+  } else if (my.mana < 2 || !isMyTurn) {
+    myPowerBtn.className = 'hero-power-btn disabled';
+  } else {
+    myPowerBtn.className = 'hero-power-btn';
+  }
+
+  oppPowerBtn.textContent = `${getHeroPowerName(opp.faction)} (2)`;
+  oppPowerBtn.className = 'hero-power-btn disabled';
+
+  // End turn button
+  const endBtn = document.getElementById('end-turn-btn');
+  if (gameMode === 'ai' && player === 'p2') {
+    endBtn.className = 'end-turn-btn disabled';
+    endBtn.textContent = '상대 턴...';
+  } else {
+    endBtn.className = 'end-turn-btn';
+    endBtn.textContent = '턴 종료';
+  }
+
+  // Opponent hero targetable?
+  if (selectedAttacker || (targetingSpell && (targetingSpell.card.target === 'enemy_any'))) {
+    oppHero.classList.add('targetable');
+  } else {
+    oppHero.classList.remove('targetable');
+  }
+
+  // Render hands
+  renderHand('my-hand', my, myKey, true);
+  renderHand('opponent-hand', opp, oppKey, false);
+
+  // Render fields
+  renderField('my-field', my, myKey, true);
+  renderField('opponent-field', opp, oppKey, false);
+
+  // Log
+  renderLog();
+}
+
+function renderManaBar(elementId, p) {
+  const bar = document.getElementById(elementId);
+  let html = '';
+  for (let i = 0; i < p.maxMana; i++) {
+    html += `<div class="mana-crystal ${i < p.mana ? 'filled' : ''}"></div>`;
+  }
+  html += `<span class="mana-text">${p.mana}/${p.maxMana}</span>`;
+  bar.innerHTML = html;
+}
+
+function renderHand(elementId, p, playerKey, isMine) {
+  const hand = document.getElementById(elementId);
+  hand.innerHTML = '';
+
+  if (!isMine) {
+    // Show card backs
+    for (let i = 0; i < p.hand.length; i++) {
+      const back = document.createElement('div');
+      back.className = 'card-back';
+      back.textContent = '🂠';
+      hand.appendChild(back);
+    }
+    return;
+  }
+
+  const isCurrentPlayer = gameState.currentPlayer === playerKey;
+
+  p.hand.forEach((card, i) => {
+    const el = document.createElement('div');
+    const factionClass = card.id === 'coin' ? 'coin-card' : getFactionClass(p.faction);
+    const playable = isCurrentPlayer && card.cost <= p.mana && (card.type !== 'minion' || p.field.length < 7);
+
+    el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''}`;
+
+    el.innerHTML = `
+      <div class="card-mana">${card.cost}</div>
+      <div class="card-art">${card.emoji}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-desc">${card.desc || ''}</div>
+      ${card.type === 'minion' ? `
+        <div class="card-stats">
+          <div class="card-attack">${card.attack}</div>
+          <div class="card-health">${card.health}</div>
+        </div>
+      ` : '<div class="card-stats"></div>'}
+    `;
+
+    if (playable && isCurrentPlayer) {
+      el.onclick = () => playCard(i);
+    }
+
+    // Tooltip on hover
+    el.onmouseenter = (e) => showTooltip(card, e);
+    el.onmouseleave = () => hideTooltip();
+
+    hand.appendChild(el);
+  });
+}
+
+function renderField(elementId, p, playerKey, isMine) {
+  const field = document.getElementById(elementId);
+  field.innerHTML = '';
+
+  const currentPlayer = gameState.currentPlayer;
+  const isMyTurn = currentPlayer === playerKey;
+  const opp = playerKey === 'p1' ? 'p2' : 'p1';
+
+  p.field.forEach(m => {
+    const el = document.createElement('div');
+    const factionClass = getFactionClass(p.faction);
+
+    let canAtk = isMine && isMyTurn && m.attacksThisTurn === 0 &&
+      (!m.summonedThisTurn || m.keywords.includes('rush'));
+
+    // For AI mode, only P1 can control
+    if (gameMode === 'ai' && playerKey === 'p2') canAtk = false;
+
+    const isSelected = selectedAttacker && selectedAttacker.uid === m.uid;
+    const isTargetable = !isMine && (selectedAttacker || targetingSpell || battlecryTarget);
+
+    el.className = `field-minion ${factionClass} ${canAtk ? 'can-attack' : ''} ${m.keywords.includes('taunt') ? 'taunt' : ''} ${isSelected ? 'selected' : ''} ${isTargetable ? 'targetable' : ''}`;
+
+    const keywordText = m.keywords.filter(k => k !== '').map(k => {
+      switch(k) {
+        case 'taunt': return '도발';
+        case 'rush': return '돌진';
+        case 'poison': return '독';
+        case 'lifesteal': return '흡수';
+        default: return k;
+      }
+    }).join(' ');
+
+    const healthDamaged = m.currentHealth < m.maxHealth;
+
+    el.innerHTML = `
+      <div class="minion-art">${m.emoji}</div>
+      <div class="minion-name">${m.name}</div>
+      <div class="minion-keywords">${keywordText}</div>
+      <div class="minion-stats">
+        <div class="minion-attack">${m.currentAttack}</div>
+        <div class="minion-health ${healthDamaged ? 'damaged' : ''}">${m.currentHealth}</div>
+      </div>
+    `;
+
+    el.dataset.uid = m.uid;
+
+    if (isMine && canAtk) {
+      el.onclick = () => selectAttacker(m);
+    } else if (!isMine && selectedAttacker) {
+      el.onclick = () => attackTarget(m, playerKey);
+    } else if (!isMine && targetingSpell) {
+      const spell = targetingSpell.card;
+      if (spell.target === 'enemy_minion' || spell.target === 'enemy_any') {
+        el.onclick = () => {
+          castSpell(targetingSpell.player, spell, targetingSpell.cardIndex, 'minion', m);
+        };
+      }
+    } else if (isMine && targetingSpell) {
+      const spell = targetingSpell.card;
+      if (spell.target === 'friendly_minion' || spell.target === 'friendly_any') {
+        el.classList.add('targetable');
+        el.onclick = () => {
+          castSpell(targetingSpell.player, spell, targetingSpell.cardIndex, 'minion', m);
+        };
+      }
+    } else if (!isMine && battlecryTarget) {
+      el.onclick = () => executeBattlecry(m);
+    }
+
+    el.onmouseenter = (e) => showTooltip(m, e);
+    el.onmouseleave = () => hideTooltip();
+
+    field.appendChild(el);
+  });
+}
+
+function renderLog() {
+  const logArea = document.getElementById('game-log');
+  logArea.innerHTML = logs.slice(-15).map(l => `<div class="log-entry">${l}</div>`).join('');
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+// ===== FLOATING TEXT =====
+function showFloatingText(uid, text, type) {
+  const el = document.querySelector(`[data-uid="${uid}"]`);
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+  const ft = document.createElement('div');
+  ft.className = `floating-text ${type}`;
+  ft.textContent = text;
+  ft.style.left = (rect.left + rect.width/2 - 10) + 'px';
+  ft.style.top = (rect.top + rect.height/2 - 10) + 'px';
+  document.body.appendChild(ft);
+
+  el.classList.add(type === 'damage' ? 'damage-flash' : 'heal-flash');
+  setTimeout(() => {
+    el.classList.remove('damage-flash', 'heal-flash');
+  }, 300);
+
+  setTimeout(() => ft.remove(), 1000);
+}
+
+function showHeroFloatingText(player, text, type) {
+  const isP1View = gameMode === 'ai' || gameState.currentPlayer === 'p1';
+  const heroId = (player === 'p1') === isP1View ? 'my-hero' : 'opponent-hero';
+  const el = document.getElementById(heroId);
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+  const ft = document.createElement('div');
+  ft.className = `floating-text ${type}`;
+  ft.textContent = text;
+  ft.style.left = (rect.left + rect.width/2 - 10) + 'px';
+  ft.style.top = (rect.top) + 'px';
+  document.body.appendChild(ft);
+
+  setTimeout(() => ft.remove(), 1000);
+}
+
+// ===== TOOLTIP =====
+function showTooltip(card, e) {
+  const tooltip = document.getElementById('card-tooltip');
+  tooltip.querySelector('.tooltip-name').textContent = card.name;
+  tooltip.querySelector('.tooltip-desc').textContent = card.desc || '일반 미니언';
+
+  let stats = '';
+  if (card.type === 'minion') {
+    const atk = card.currentAttack !== undefined ? card.currentAttack : card.attack;
+    const hp = card.currentHealth !== undefined ? card.currentHealth : card.health;
+    stats = `공격력: ${atk} | 체력: ${hp} | 마나: ${card.cost}`;
+  } else {
+    stats = `마나: ${card.cost} | 주문`;
+  }
+  tooltip.querySelector('.tooltip-stats').textContent = stats;
+
+  tooltip.style.display = 'block';
+  tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 220) + 'px';
+  tooltip.style.top = Math.min(e.clientY + 10, window.innerHeight - 100) + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('card-tooltip').style.display = 'none';
+}
+
+// ===== LOGGING =====
+function addLog(msg) {
+  logs.push(msg);
+  if (logs.length > 50) logs.shift();
+}
+
+// ===== MENU NAVIGATION =====
+function showMainMenu() {
+  document.getElementById('main-menu').style.display = 'flex';
+  document.getElementById('faction-select').style.display = 'none';
+  document.getElementById('game-board').style.display = 'none';
+  document.getElementById('game-over').style.display = 'none';
+  document.getElementById('turn-transition').style.display = 'none';
+  gameState = null;
+}
+
+function startGame(mode) {
+  gameMode = mode;
+  document.getElementById('main-menu').style.display = 'none';
+  document.getElementById('faction-select').style.display = 'flex';
+}
+
+function selectFaction(faction) {
+  selectedFaction = faction;
+  document.getElementById('faction-select').style.display = 'none';
+  document.getElementById('game-board').style.display = 'flex';
+  initGame();
+}
+
+function rematch() {
+  document.getElementById('game-over').style.display = 'none';
+  initGame();
+}
+
+// Right click to cancel
+document.addEventListener('contextmenu', (e) => {
+  if (selectedAttacker || targetingSpell || battlecryTarget) {
+    e.preventDefault();
+    cancelTargeting();
+  }
+});
+
+// ===== CARD DICTIONARY =====
+function openDictionary() {
+  if (!gameState) return;
+  const myKey = (gameMode === 'ai' || gameState.currentPlayer === 'p1') ? 'p1' : 'p2';
+  const my = gameState[myKey];
+  const cards = my.faction === 'human' ? HUMAN_CARDS : DEMON_CARDS;
+
+  const title = document.getElementById('dict-title');
+  const subtitle = document.getElementById('dict-subtitle');
+  title.textContent = `${getFactionName(my.faction)} 카드 도감`;
+  subtitle.textContent = `전체 ${cards.length}종`;
+
+  const minions = cards.filter(c => c.type === 'minion');
+  const spells = cards.filter(c => c.type === 'spell');
+  const fclass = getFactionClass(my.faction);
+
+  let html = '';
+
+  html += `<div class="dict-section"><h3>미니언 (${minions.length}종)</h3><div class="dict-grid">`;
+  minions.forEach(c => {
+    const kwText = (c.keywords || []).map(k => {
+      switch(k) { case 'taunt': return '도발'; case 'rush': return '돌진'; case 'poison': return '독'; case 'lifesteal': return '흡수'; default: return k; }
+    }).join(', ');
+    const desc = c.desc || kwText || '';
+    html += `
+      <div class="dict-card ${fclass}">
+        <div class="dc-top"><div class="dc-mana">${c.cost}</div><span class="dc-type">미니언</span></div>
+        <div class="dc-emoji">${c.emoji}</div>
+        <div class="dc-name">${c.name}</div>
+        <div class="dc-desc">${desc}</div>
+        <div class="dc-stats"><div class="dc-atk">${c.attack}</div><div class="dc-hp">${c.health}</div></div>
+      </div>`;
+  });
+  html += '</div></div>';
+
+  html += `<div class="dict-section"><h3>주문 (${spells.length}종)</h3><div class="dict-grid">`;
+  spells.forEach(c => {
+    html += `
+      <div class="dict-card ${fclass}">
+        <div class="dc-top"><div class="dc-mana">${c.cost}</div><span class="dc-type">주문</span></div>
+        <div class="dc-emoji">${c.emoji}</div>
+        <div class="dc-name">${c.name}</div>
+        <div class="dc-desc">${c.desc}</div>
+      </div>`;
+  });
+  html += '</div></div>';
+
+  document.getElementById('dict-content').innerHTML = html;
+  document.getElementById('card-dictionary').style.display = 'flex';
+}
+
+function closeDictionary() {
+  document.getElementById('card-dictionary').style.display = 'none';
+}
+</script>
+</body>
+</html>

@@ -1169,6 +1169,143 @@ body {
 </svg>
 
 <script>
+// ===== SOUND EFFECTS (Web Audio API) =====
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playSound(type) {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    switch(type) {
+      case 'summon': {
+        // 상승 톤 - 밝은 소환 느낌
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(600, now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.2);
+        break;
+      }
+      case 'attack': {
+        // 타격음 - 낮은 펑 소리
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(60, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.15);
+        // 노이즈 레이어
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+        const noise = ctx.createBufferSource();
+        const ng = ctx.createGain();
+        noise.buffer = buf;
+        ng.gain.setValueAtTime(0.15, now);
+        ng.gain.linearRampToValueAtTime(0, now + 0.1);
+        noise.connect(ng).connect(ctx.destination);
+        noise.start(now); noise.stop(now + 0.1);
+        break;
+      }
+      case 'spell': {
+        // 마법 - 고음 스윕
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.3);
+        break;
+      }
+      case 'heropower': {
+        // 파워업 - 두 음 연속
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(350, now);
+        osc.frequency.setValueAtTime(500, now + 0.1);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.2);
+        break;
+      }
+      case 'death': {
+        // 사망 - 하강 톤
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.3);
+        break;
+      }
+      case 'endturn': {
+        // 알림음 - 짧은 딩
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(660, now);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.15);
+        break;
+      }
+      case 'victory': {
+        // 승리 팡파르
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          gain.gain.setValueAtTime(0.15, now + i * 0.12);
+          gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.25);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now + i * 0.12); osc.stop(now + i * 0.12 + 0.25);
+        });
+        break;
+      }
+      case 'defeat': {
+        // 패배 - 하강 슬픈 톤
+        const notes = [400, 350, 300, 200];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + i * 0.15);
+          gain.gain.setValueAtTime(0.12, now + i * 0.15);
+          gain.gain.linearRampToValueAtTime(0, now + i * 0.15 + 0.3);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.3);
+        });
+        break;
+      }
+    }
+  } catch(e) {}
+}
+
 // ===== CARD DEFINITIONS =====
 const HUMAN_CARDS = [
   // Minions
@@ -1361,6 +1498,7 @@ function startTurn(player) {
 
 function endTurn() {
   if (gameState.gameOver) return;
+  playSound('endturn');
 
   const current = gameState.currentPlayer;
   const next = current === 'p1' ? 'p2' : 'p1';
@@ -1449,6 +1587,7 @@ function summonMinion(player, card, cardIndex) {
 
   p.field.push(minion);
   addLog(`${card.name} 소환! (${card.attack}/${card.health})`);
+  playSound('summon');
 
   // Execute battlecry
   if (card.battlecry && !card.battlecry_target) {
@@ -1493,6 +1632,7 @@ function castSpell(player, card, cardIndex, targetType, target) {
   p.hand.splice(cardIndex, 1);
 
   addLog(`${card.name} 시전!`);
+  playSound('spell');
 
   switch(card.effect) {
     case 'damage':
@@ -1594,6 +1734,7 @@ function attackTarget(target, targetPlayer) {
 
   if (target === 'hero') {
     // Attack hero
+    playSound('attack');
     gameState[opp].hp -= selectedAttacker.currentAttack;
     addLog(`${selectedAttacker.name}이(가) 적 영웅을 공격! ${selectedAttacker.currentAttack} 데미지!`);
     showHeroFloatingText(opp, `-${selectedAttacker.currentAttack}`, 'damage');
@@ -1610,7 +1751,7 @@ function attackTarget(target, targetPlayer) {
   } else {
     // Attack minion
     const attacker = selectedAttacker;
-
+    playSound('attack');
     addLog(`${attacker.name}이(가) ${target.name}을(를) 공격!`);
 
     // Deal damage
@@ -1638,6 +1779,9 @@ function attackTarget(target, targetPlayer) {
     }
 
     // Remove dead minions
+    const deadCount = gameState[player].field.filter(m => m.currentHealth <= 0).length +
+                      gameState[opp].field.filter(m => m.currentHealth <= 0).length;
+    if (deadCount > 0) setTimeout(() => playSound('death'), 100);
     gameState[player].field = gameState[player].field.filter(m => m.currentHealth > 0);
     gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
 
@@ -1688,6 +1832,7 @@ function useHeroPower() {
 
   p.mana -= 2;
   p.heroPowerUsed = true;
+  playSound('heropower');
 
   if (p.faction === 'human') {
     const healed = Math.min(2, 30 - p.hp);
@@ -1759,16 +1904,19 @@ function showGameOver() {
       title.textContent = '승리!';
       title.style.color = '#f1c40f';
       text.textContent = '적 영웅을 쓰러뜨렸습니다!';
+      playSound('victory');
     } else {
       title.textContent = '패배...';
       title.style.color = '#e74c3c';
       text.textContent = '영웅이 쓰러졌습니다...';
+      playSound('defeat');
     }
   } else {
     const winFaction = gameState[gameState.winner].faction;
     title.textContent = `${getFactionName(winFaction)} 승리!`;
     title.style.color = '#f1c40f';
     text.textContent = `${getFactionName(winFaction)} 진영이 승리했습니다!`;
+    playSound('victory');
   }
 
   overlay.style.display = 'flex';

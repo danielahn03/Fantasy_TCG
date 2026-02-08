@@ -1033,6 +1033,104 @@ body {
   background: #c0392b;
   color: #fff;
 }
+
+/* ===== PAUSE MENU ===== */
+#pause-menu, #settings-menu {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+#pause-menu h2, #settings-menu h2 {
+  font-size: 2em;
+  margin-bottom: 20px;
+}
+
+.pause-btn {
+  padding: 12px 0;
+  width: 200px;
+  font-size: 1.1em;
+  border: 2px solid #555;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.pause-btn:hover {
+  background: rgba(255,255,255,0.18);
+  border-color: #aaa;
+  transform: scale(1.03);
+}
+
+.pause-btn-danger {
+  border-color: #c0392b;
+  color: #e74c3c;
+}
+
+.pause-btn-danger:hover {
+  background: rgba(192,57,43,0.2);
+  border-color: #e74c3c;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 260px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 1em;
+}
+
+.settings-row input[type="range"] {
+  flex: 1;
+  accent-color: #e67e22;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 26px;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-slider {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #555;
+  border-radius: 26px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  left: 3px; bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #e67e22;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(22px);
+}
 </style>
 </head>
 <body>
@@ -1044,6 +1142,25 @@ body {
   <button class="menu-btn" onclick="startGame('ai')">AI 대전</button>
   <button class="menu-btn" onclick="startGame('pvp')">2인 대전</button>
   <button class="menu-btn" onclick="openMenuDictionary()">📖 카드 도감</button>
+  <button class="menu-btn" onclick="openMenuSettings()">⚙️ 설정</button>
+</div>
+
+<!-- MENU SETTINGS -->
+<div id="menu-settings" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);">
+  <h2 style="margin-bottom:30px;">⚙️ 설정</h2>
+  <div class="settings-row">
+    <span>효과음</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="menu-sfx-toggle" checked onchange="toggleSfx(this.checked)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <span>음량</span>
+    <input type="range" id="menu-volume-slider" min="0" max="100" value="50" oninput="setVolume(this.value)">
+    <span id="menu-volume-label">50%</span>
+  </div>
+  <button class="back-btn" onclick="closeMenuSettings()" style="margin-top:30px;">뒤로</button>
 </div>
 
 <!-- MENU DICTIONARY -->
@@ -1076,7 +1193,7 @@ body {
   <div class="top-bar">
     <span class="game-info" id="turn-info">턴 1</span>
     <span class="game-info" id="game-mode-info"></span>
-    <span class="menu-link" onclick="showMainMenu()">메뉴</span>
+    <span class="menu-link" onclick="openPauseMenu()">메뉴</span>
   </div>
 
   <!-- Opponent area -->
@@ -1140,6 +1257,33 @@ body {
   <button onclick="confirmTurnTransition()">준비 완료</button>
 </div>
 
+<!-- Pause Menu -->
+<div id="pause-menu">
+  <h2>일시정지</h2>
+  <button class="pause-btn" onclick="closePauseMenu()">계속</button>
+  <button class="pause-btn" onclick="openSettings()">설정</button>
+  <button class="pause-btn" onclick="closePauseMenu(); rematch();">다시하기</button>
+  <button class="pause-btn pause-btn-danger" onclick="closePauseMenu(); showMainMenu();">메인 메뉴</button>
+</div>
+
+<!-- Settings Menu -->
+<div id="settings-menu">
+  <h2>설정</h2>
+  <div class="settings-row">
+    <span>효과음</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="sfx-toggle" checked onchange="toggleSfx(this.checked)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <span>음량</span>
+    <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="setVolume(this.value)">
+    <span id="volume-label">50%</span>
+  </div>
+  <button class="pause-btn" onclick="closeSettings()">뒤로</button>
+</div>
+
 <!-- Game Over -->
 <div id="game-over">
   <h2 id="game-over-title"></h2>
@@ -1171,116 +1315,113 @@ body {
 <script>
 // ===== SOUND EFFECTS (Web Audio API) =====
 let audioCtx = null;
+let sfxEnabled = true;
+let sfxVolume = 0.5;
+
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
 
 function playSound(type) {
+  if (!sfxEnabled) return;
   try {
     const ctx = getAudioCtx();
     const now = ctx.currentTime;
+    const vol = sfxVolume;
 
     switch(type) {
       case 'summon': {
-        // 상승 톤 - 밝은 소환 느낌
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(300, now);
         osc.frequency.linearRampToValueAtTime(600, now + 0.15);
-        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.setValueAtTime(0.2 * vol, now);
         gain.gain.linearRampToValueAtTime(0, now + 0.2);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.2);
         break;
       }
       case 'attack': {
-        // 타격음 - 낮은 펑 소리
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(150, now);
         osc.frequency.linearRampToValueAtTime(60, now + 0.15);
-        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.setValueAtTime(0.3 * vol, now);
         gain.gain.linearRampToValueAtTime(0, now + 0.15);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.15);
-        // 노이즈 레이어
         const buf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
         const data = buf.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
         const noise = ctx.createBufferSource();
         const ng = ctx.createGain();
         noise.buffer = buf;
-        ng.gain.setValueAtTime(0.15, now);
+        ng.gain.setValueAtTime(0.15 * vol, now);
         ng.gain.linearRampToValueAtTime(0, now + 0.1);
         noise.connect(ng).connect(ctx.destination);
         noise.start(now); noise.stop(now + 0.1);
         break;
       }
       case 'spell': {
-        // 마법 - 고음 스윕
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(400, now);
         osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
         osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+        gain.gain.setValueAtTime(0.15 * vol, now);
+        gain.gain.linearRampToValueAtTime(0.2 * vol, now + 0.1);
         gain.gain.linearRampToValueAtTime(0, now + 0.3);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.3);
         break;
       }
       case 'heropower': {
-        // 파워업 - 두 음 연속
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'square';
         osc.frequency.setValueAtTime(350, now);
         osc.frequency.setValueAtTime(500, now + 0.1);
-        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.setValueAtTime(0.12 * vol, now);
         gain.gain.linearRampToValueAtTime(0, now + 0.2);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.2);
         break;
       }
       case 'death': {
-        // 사망 - 하강 톤
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(400, now);
         osc.frequency.linearRampToValueAtTime(100, now + 0.25);
-        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.setValueAtTime(0.2 * vol, now);
         gain.gain.linearRampToValueAtTime(0, now + 0.3);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.3);
         break;
       }
       case 'endturn': {
-        // 알림음 - 짧은 딩
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(660, now);
-        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.setValueAtTime(0.1 * vol, now);
         gain.gain.linearRampToValueAtTime(0, now + 0.15);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.15);
         break;
       }
       case 'victory': {
-        // 승리 팡파르
         const notes = [523, 659, 784, 1047];
         notes.forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(freq, now + i * 0.12);
-          gain.gain.setValueAtTime(0.15, now + i * 0.12);
+          gain.gain.setValueAtTime(0.15 * vol, now + i * 0.12);
           gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.25);
           osc.connect(gain).connect(ctx.destination);
           osc.start(now + i * 0.12); osc.stop(now + i * 0.12 + 0.25);
@@ -1295,7 +1436,7 @@ function playSound(type) {
           const gain = ctx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(freq, now + i * 0.15);
-          gain.gain.setValueAtTime(0.12, now + i * 0.15);
+          gain.gain.setValueAtTime(0.12 * vol, now + i * 0.15);
           gain.gain.linearRampToValueAtTime(0, now + i * 0.15 + 0.3);
           osc.connect(gain).connect(ctx.destination);
           osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.3);
@@ -2433,6 +2574,26 @@ function addLog(msg) {
 }
 
 // ===== MENU NAVIGATION =====
+// ===== PAUSE MENU =====
+function openPauseMenu() {
+  document.getElementById('pause-menu').style.display = 'flex';
+}
+
+function closePauseMenu() {
+  document.getElementById('pause-menu').style.display = 'none';
+}
+
+function openSettings() {
+  document.getElementById('pause-menu').style.display = 'none';
+  document.getElementById('settings-menu').style.display = 'flex';
+  syncSettingsUI();
+}
+
+function closeSettings() {
+  document.getElementById('settings-menu').style.display = 'none';
+  document.getElementById('pause-menu').style.display = 'flex';
+}
+
 function showMainMenu() {
   document.getElementById('main-menu').style.display = 'flex';
   document.getElementById('faction-select').style.display = 'none';
@@ -2440,6 +2601,9 @@ function showMainMenu() {
   document.getElementById('game-over').style.display = 'none';
   document.getElementById('turn-transition').style.display = 'none';
   document.getElementById('menu-dictionary').style.display = 'none';
+  document.getElementById('pause-menu').style.display = 'none';
+  document.getElementById('settings-menu').style.display = 'none';
+  document.getElementById('menu-settings').style.display = 'none';
   gameState = null;
 }
 
@@ -2565,6 +2729,46 @@ function openMenuDictionary() {
 function closeMenuDictionary() {
   document.getElementById('menu-dictionary').style.display = 'none';
   document.getElementById('main-menu').style.display = 'flex';
+}
+
+function openMenuSettings() {
+  document.getElementById('main-menu').style.display = 'none';
+  document.getElementById('menu-settings').style.display = 'flex';
+  syncSettingsUI();
+}
+
+function closeMenuSettings() {
+  document.getElementById('menu-settings').style.display = 'none';
+  document.getElementById('main-menu').style.display = 'flex';
+}
+
+function syncSettingsUI() {
+  const val = Math.round(sfxVolume * 100);
+  // 메인 메뉴 설정
+  const menuSfx = document.getElementById('menu-sfx-toggle');
+  const menuVol = document.getElementById('menu-volume-slider');
+  const menuLabel = document.getElementById('menu-volume-label');
+  if (menuSfx) menuSfx.checked = sfxEnabled;
+  if (menuVol) menuVol.value = val;
+  if (menuLabel) menuLabel.textContent = val + '%';
+  // 게임 내 설정
+  const gameSfx = document.getElementById('sfx-toggle');
+  const gameVol = document.getElementById('volume-slider');
+  const gameLabel = document.getElementById('volume-label');
+  if (gameSfx) gameSfx.checked = sfxEnabled;
+  if (gameVol) gameVol.value = val;
+  if (gameLabel) gameLabel.textContent = val + '%';
+}
+
+function setVolume(val) {
+  sfxVolume = val / 100;
+  document.querySelectorAll('#volume-label, #menu-volume-label').forEach(el => el.textContent = val + '%');
+  document.querySelectorAll('#volume-slider, #menu-volume-slider').forEach(el => el.value = val);
+}
+
+function toggleSfx(enabled) {
+  sfxEnabled = enabled;
+  document.querySelectorAll('#sfx-toggle, #menu-sfx-toggle').forEach(el => el.checked = enabled);
 }
 </script>
 </body>

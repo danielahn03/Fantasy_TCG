@@ -1055,7 +1055,7 @@ body {
     <div class="faction-card demon" onclick="selectFaction('demon')">
       <div class="faction-icon">👿</div>
       <h3>악마</h3>
-      <p>지옥의 군단을 이끌고 어둠의 힘으로 세상을 지배하세요.<br><br>🔥 영웅 능력: 적에게 2 데미지</p>
+      <p>지옥의 군단을 이끌고 어둠의 힘으로 세상을 지배하세요.<br><br>👹 영웅 능력: 1/1 임프 소환</p>
     </div>
   </div>
   <button class="back-btn" onclick="showMainMenu()">뒤로</button>
@@ -1136,14 +1136,6 @@ body {
   <p class="result-text" id="game-over-text"></p>
   <button onclick="showMainMenu()">메인 메뉴</button>
   <button onclick="rematch()">재대전</button>
-</div>
-
-<!-- Card Dictionary -->
-<div id="card-dictionary">
-  <h2 id="dict-title">카드 도감</h2>
-  <p class="dict-subtitle" id="dict-subtitle"></p>
-  <div id="dict-content"></div>
-  <button class="dict-close-btn" onclick="closeDictionary()">닫기</button>
 </div>
 
 <!-- Cancel target button -->
@@ -1312,7 +1304,7 @@ function getFactionName(f) { return f === 'human' ? '인간' : '악마'; }
 function getFactionClass(f) { return f === 'human' ? 'human-card' : 'demon-card'; }
 function getHeroClass(f) { return f === 'human' ? 'human-hero' : 'demon-hero'; }
 function getHeroEmoji(f) { return f === 'human' ? '⚔️' : '👿'; }
-function getHeroPowerName(f) { return f === 'human' ? '성스러운 회복' : '지옥불'; }
+function getHeroPowerName(f) { return f === 'human' ? '성스러운 회복' : '임프 소환'; }
 
 function drawCard(player) {
   const p = gameState[player];
@@ -1347,6 +1339,7 @@ function startTurn(player) {
   p.field.forEach(m => {
     m.canAttack = true;
     m.attacksThisTurn = 0;
+    m.summonedThisTurn = false;
   });
 
   // Draw
@@ -1692,9 +1685,20 @@ function useHeroPower() {
     addLog(`영웅 능력: 체력 ${healed} 회복!`);
     showHeroFloatingText(player, `+${healed}`, 'heal');
   } else {
-    gameState[opp].hp -= 2;
-    addLog(`영웅 능력: 적 영웅에게 2 데미지!`);
-    showHeroFloatingText(opp, `-2`, 'damage');
+    // 악마: 1/1 임프 소환
+    if (p.field.length >= 7) {
+      addLog('영웅 능력: 필드가 가득 차서 소환 불가!');
+    } else {
+      const imp = {
+        id: 'imp_token', name: '임프', type: 'minion', cost: 1,
+        attack: 1, health: 1, emoji: '👹', desc: '', keywords: [],
+        uid: 'imp_' + Math.random().toString(36).substr(2, 9),
+        currentHealth: 1, maxHealth: 1, currentAttack: 1,
+        canAttack: false, summonedThisTurn: true, attacksThisTurn: 0,
+      };
+      p.field.push(imp);
+      addLog('영웅 능력: 1/1 임프 소환!');
+    }
   }
 
   checkGameOver();
@@ -1872,8 +1876,17 @@ function aiTurn() {
       p.hp = Math.min(30, p.hp + 2);
       addLog('AI 영웅 능력: 체력 2 회복!');
     } else {
-      opp.hp -= 2;
-      addLog('AI 영웅 능력: 적 영웅에게 2 데미지!');
+      if (p.field.length < 7) {
+        const imp = {
+          id: 'imp_token', name: '임프', type: 'minion', cost: 1,
+          attack: 1, health: 1, emoji: '👹', desc: '', keywords: [],
+          uid: 'imp_' + Math.random().toString(36).substr(2, 9),
+          currentHealth: 1, maxHealth: 1, currentAttack: 1,
+          canAttack: false, summonedThisTurn: true, attacksThisTurn: 0,
+        };
+        p.field.push(imp);
+        addLog('AI 영웅 능력: 1/1 임프 소환!');
+      }
     }
     checkGameOver();
     render();
@@ -2156,18 +2169,7 @@ function renderField(elementId, p, playerKey, isMine) {
 
     el.dataset.uid = m.uid;
 
-    if (isMine && canAtk) {
-      el.onclick = () => selectAttacker(m);
-    } else if (!isMine && selectedAttacker) {
-      el.onclick = () => attackTarget(m, playerKey);
-    } else if (!isMine && targetingSpell) {
-      const spell = targetingSpell.card;
-      if (spell.target === 'enemy_minion' || spell.target === 'enemy_any') {
-        el.onclick = () => {
-          castSpell(targetingSpell.player, spell, targetingSpell.cardIndex, 'minion', m);
-        };
-      }
-    } else if (isMine && targetingSpell) {
+    if (isMine && targetingSpell) {
       const spell = targetingSpell.card;
       if (spell.target === 'friendly_minion' || spell.target === 'friendly_any') {
         el.classList.add('targetable');
@@ -2175,8 +2177,19 @@ function renderField(elementId, p, playerKey, isMine) {
           castSpell(targetingSpell.player, spell, targetingSpell.cardIndex, 'minion', m);
         };
       }
+    } else if (!isMine && targetingSpell) {
+      const spell = targetingSpell.card;
+      if (spell.target === 'enemy_minion' || spell.target === 'enemy_any') {
+        el.onclick = () => {
+          castSpell(targetingSpell.player, spell, targetingSpell.cardIndex, 'minion', m);
+        };
+      }
     } else if (!isMine && battlecryTarget) {
       el.onclick = () => executeBattlecry(m);
+    } else if (isMine && canAtk) {
+      el.onclick = () => selectAttacker(m);
+    } else if (!isMine && selectedAttacker) {
+      el.onclick = () => attackTarget(m, playerKey);
     }
 
     el.onmouseenter = (e) => showTooltip(m, e);
@@ -2298,24 +2311,48 @@ document.addEventListener('contextmenu', (e) => {
 });
 
 // ===== CARD DICTIONARY =====
+function toggleDictionary() {
+  const dict = document.getElementById('card-dictionary');
+  const toggle = document.getElementById('dict-toggle');
+  if (dict.style.display === 'flex') {
+    dict.style.display = 'none';
+    toggle.classList.remove('open');
+  } else {
+    openDictionary();
+    toggle.classList.add('open');
+  }
+}
+
 function openDictionary() {
   if (!gameState) return;
   const myKey = (gameMode === 'ai' || gameState.currentPlayer === 'p1') ? 'p1' : 'p2';
   const my = gameState[myKey];
-  const cards = my.faction === 'human' ? HUMAN_CARDS : DEMON_CARDS;
+  const myCards = my.faction === 'human' ? HUMAN_CARDS : DEMON_CARDS;
+  const oppFaction = my.faction === 'human' ? 'demon' : 'human';
+  const oppCards = oppFaction === 'human' ? HUMAN_CARDS : DEMON_CARDS;
 
   const title = document.getElementById('dict-title');
   const subtitle = document.getElementById('dict-subtitle');
-  title.textContent = `${getFactionName(my.faction)} 카드 도감`;
-  subtitle.textContent = `전체 ${cards.length}종`;
-
-  const minions = cards.filter(c => c.type === 'minion');
-  const spells = cards.filter(c => c.type === 'spell');
-  const fclass = getFactionClass(my.faction);
+  title.textContent = '카드 도감';
+  subtitle.textContent = `전체 ${myCards.length + oppCards.length}종`;
 
   let html = '';
 
-  html += `<div class="dict-section"><h3>미니언 (${minions.length}종)</h3><div class="dict-grid">`;
+  // My faction cards
+  html += renderDictFaction(getFactionName(my.faction), myCards, getFactionClass(my.faction));
+  // Opponent faction cards
+  html += renderDictFaction(getFactionName(oppFaction), oppCards, getFactionClass(oppFaction));
+
+  document.getElementById('dict-content').innerHTML = html;
+  document.getElementById('card-dictionary').style.display = 'flex';
+}
+
+function renderDictFaction(factionName, cards, fclass) {
+  const minions = cards.filter(c => c.type === 'minion');
+  const spells = cards.filter(c => c.type === 'spell');
+  let html = '';
+
+  html += `<div class="dict-section"><h3>${factionName} 미니언 (${minions.length}종)</h3><div class="dict-grid">`;
   minions.forEach(c => {
     const kwText = (c.keywords || []).map(k => {
       switch(k) { case 'taunt': return '도발'; case 'rush': return '돌진'; case 'poison': return '독'; case 'lifesteal': return '흡수'; default: return k; }
@@ -2323,33 +2360,36 @@ function openDictionary() {
     const desc = c.desc || kwText || '';
     html += `
       <div class="dict-card ${fclass}">
-        <div class="dc-top"><div class="dc-mana">${c.cost}</div><span class="dc-type">미니언</span></div>
-        <div class="dc-emoji">${c.emoji}</div>
-        <div class="dc-name">${c.name}</div>
-        <div class="dc-desc">${desc}</div>
-        <div class="dc-stats"><div class="dc-atk">${c.attack}</div><div class="dc-hp">${c.health}</div></div>
+        <div class="dc-left">
+          <div class="dc-emoji">${c.emoji}</div>
+          <div class="dc-mana">${c.cost}</div>
+        </div>
+        <div class="dc-right">
+          <div class="dc-name">${c.name}</div>
+          <div class="dc-desc">${desc}</div>
+          <div class="dc-stats"><div class="dc-atk">${c.attack}</div><div class="dc-hp">${c.health}</div></div>
+        </div>
       </div>`;
   });
   html += '</div></div>';
 
-  html += `<div class="dict-section"><h3>주문 (${spells.length}종)</h3><div class="dict-grid">`;
+  html += `<div class="dict-section"><h3>${factionName} 주문 (${spells.length}종)</h3><div class="dict-grid">`;
   spells.forEach(c => {
     html += `
       <div class="dict-card ${fclass}">
-        <div class="dc-top"><div class="dc-mana">${c.cost}</div><span class="dc-type">주문</span></div>
-        <div class="dc-emoji">${c.emoji}</div>
-        <div class="dc-name">${c.name}</div>
-        <div class="dc-desc">${c.desc}</div>
+        <div class="dc-left">
+          <div class="dc-emoji">${c.emoji}</div>
+          <div class="dc-mana">${c.cost}</div>
+        </div>
+        <div class="dc-right">
+          <div class="dc-name">${c.name}</div>
+          <div class="dc-desc">${c.desc}</div>
+        </div>
       </div>`;
   });
   html += '</div></div>';
 
-  document.getElementById('dict-content').innerHTML = html;
-  document.getElementById('card-dictionary').style.display = 'flex';
-}
-
-function closeDictionary() {
-  document.getElementById('card-dictionary').style.display = 'none';
+  return html;
 }
 </script>
 </body>

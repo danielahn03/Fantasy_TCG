@@ -1465,6 +1465,15 @@ body {
   <button class="menu-btn" onclick="playSound('click'); startGame('pvp')">2인 대전</button>
   <button class="menu-btn" onclick="playSound('book'); openMenuDictionary()">📖 카드 도감</button>
   <button class="menu-btn" onclick="playSound('click'); openMenuSettings()">⚙️ 설정</button>
+  <!-- BGM 테스트 패널 (임시) -->
+  <div id="bgm-test-panel" style="position:fixed; bottom:10px; right:10px; background:rgba(0,0,0,0.7); border:1px solid #555; border-radius:8px; padding:8px 12px; display:flex; gap:6px; align-items:center; z-index:10;">
+    <span style="font-size:0.75em; color:#888; margin-right:4px;">🎵</span>
+    <button onclick="playBGM('menu')" style="padding:4px 8px; font-size:0.7em; background:#444; border:none; color:#ccc; border-radius:4px; cursor:pointer;">메뉴</button>
+    <button onclick="playBGM('battle')" style="padding:4px 8px; font-size:0.7em; background:#444; border:none; color:#ccc; border-radius:4px; cursor:pointer;">배틀</button>
+    <button onclick="playBGM('victory')" style="padding:4px 8px; font-size:0.7em; background:#444; border:none; color:#ccc; border-radius:4px; cursor:pointer;">승리</button>
+    <button onclick="playBGM('defeat')" style="padding:4px 8px; font-size:0.7em; background:#444; border:none; color:#ccc; border-radius:4px; cursor:pointer;">패배</button>
+    <button onclick="stopBGM()" style="padding:4px 8px; font-size:0.7em; background:#633; border:none; color:#ccc; border-radius:4px; cursor:pointer;">⏹</button>
+  </div>
 </div>
 
 <!-- MENU SETTINGS -->
@@ -1948,31 +1957,39 @@ const BGM_TRACKS = {
     waveform: 'triangle',
   },
   victory: {
-    // 승리: 밝고 웅장한 C장조 팡파레
+    // 승리: 빵빠레 개선행진 스타일
     patterns: [
-      [261.6, 329.6, 392, 523.3, 392, 523.3],
-      [349.2, 440, 523.3, 659.3, 523.3, 659.3],
-      [392, 493.9, 587.3, 784, 587.3, 784],
-      [523.3, 659.3, 784, 1047, 784, 659.3],
+      // 빠-빠빠빠~ 팡파레 도입
+      [392, 392, 523.3, 392, 523.3, 659.3, 0, 659.3],
+      // 반복 상승
+      [523.3, 523.3, 659.3, 523.3, 659.3, 784, 0, 784],
+      // 행진 리듬
+      [659.3, 784, 659.3, 784, 1047, 784, 1047, 0],
+      // 마무리 팡파레
+      [523.3, 659.3, 784, 1047, 0, 1047, 1047, 1047],
     ],
-    tempo: 500,
-    noteDecay: 1.0,
-    noteVol: 0.3,
-    harmonicVol: 0.1,
+    tempo: 300,
+    noteDecay: 0.5,
+    noteVol: 0.35,
+    harmonicVol: 0.15,
     waveform: 'triangle',
   },
   defeat: {
-    // 패배: 느리고 슬픈 A단조 하강
+    // 패배: 슬프지만 또렷한 A단조
     patterns: [
-      [329.6, 293.7, 261.6, 246.9, 220, 196],
-      [293.7, 261.6, 246.9, 220, 196, 174.6],
-      [261.6, 246.9, 220, 196, 174.6, 164.8],
-      [220, 196, 174.6, 164.8, 146.8, 130.8],
+      // 하강 후 살짝 상승
+      [440, 392, 329.6, 293.7, 329.6, 0],
+      // 다시 내려감
+      [392, 349.2, 293.7, 261.6, 293.7, 0],
+      // 한탄하듯 올라갔다
+      [329.6, 349.2, 392, 329.6, 293.7, 0],
+      // 체념하며 마무리
+      [293.7, 261.6, 246.9, 220, 0, 0],
     ],
-    tempo: 750,
-    noteDecay: 1.5,
-    noteVol: 0.4,
-    harmonicVol: 0.1,
+    tempo: 550,
+    noteDecay: 1.0,
+    noteVol: 0.38,
+    harmonicVol: 0.12,
     waveform: 'triangle',
   },
 };

@@ -2536,8 +2536,8 @@ function summonMinion(player, card, cardIndex) {
   addLog(`${card.name} 소환! (${card.attack}/${card.health})`);
   playSound('summon');
 
-  // Execute battlecry
-  if (card.battlecry && !card.battlecry_target) {
+  // Execute battlecry (battlecry_target이 있는 카드는 executeBattlecry/AI에서 별도 처리)
+  if (card.battlecry && !card.battlecry_target && !card.battlecry_damage) {
     setTimeout(() => {
       card.battlecry(gameState, player);
       triggerBattlecryFlash();
@@ -3456,7 +3456,8 @@ function showFloatingText(uid, text, type) {
 }
 
 function showHeroFloatingText(player, text, type) {
-  const isP1View = gameMode === 'ai' || gameState.currentPlayer === 'p1';
+  // AI 모드에서는 항상 P1 시점, PVP에서는 실제 DOM 기준으로 판단
+  const isP1View = gameMode === 'ai' ? true : gameState.currentPlayer === 'p1';
   const heroId = (player === 'p1') === isP1View ? 'my-hero' : 'opponent-hero';
   const el = document.getElementById(heroId);
   if (!el) return;

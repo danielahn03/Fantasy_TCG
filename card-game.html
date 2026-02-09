@@ -2364,6 +2364,10 @@ function initGame() {
     },
   };
 
+  logs = [];
+  addLog('게임 시작!');
+  addLog(`${getFactionName(p1Faction)} vs ${getFactionName(p2Faction)}`);
+
   // Draw starting hands
   for (let i = 0; i < 3; i++) drawCard('p1');
   for (let i = 0; i < 4; i++) drawCard('p2');
@@ -2373,10 +2377,6 @@ function initGame() {
 
   // Start P1's turn
   startTurn('p1');
-
-  logs = [];
-  addLog('게임 시작!');
-  addLog(`${getFactionName(p1Faction)} vs ${getFactionName(p2Faction)}`);
 
   playBGM('battle');
 }
@@ -2435,6 +2435,9 @@ function startTurn(player) {
 
   // Draw
   drawCard(player);
+
+  // 피로 데미지로 게임 오버 시 이후 로직 중단
+  if (gameState.gameOver) { render(); return; }
 
   clearSelection();
   render();
@@ -2538,14 +2541,22 @@ function summonMinion(player, card, cardIndex) {
 
   // Execute battlecry (battlecry_target이 있는 카드는 executeBattlecry/AI에서 별도 처리)
   if (card.battlecry && !card.battlecry_target && !card.battlecry_damage) {
-    setTimeout(() => {
+    const isAI = gameMode === 'ai' && player === 'p2';
+    const executeBattlecryEffect = () => {
       card.battlecry(gameState, player);
       triggerBattlecryFlash();
       const isHealBattlecry = card.desc.includes('회복');
       playSound(isHealBattlecry ? 'buff' : 'debuff');
       checkGameOver();
       render();
-    }, 300);
+    };
+    if (isAI) {
+      // AI는 동기 루프이므로 즉시 실행하여 상태 일치 보장
+      executeBattlecryEffect();
+    } else {
+      // 플레이어는 소환 → 전투 함성 딜레이 연출
+      setTimeout(executeBattlecryEffect, 300);
+    }
   } else {
     checkGameOver();
     render();
@@ -2702,6 +2713,7 @@ function attackTarget(target, targetPlayer) {
 
   // 실제 공격 처리 함수
   function processAttack() {
+    if (gameState.gameOver) { isAttacking = false; clearSelection(); return; }
     if (target === 'hero') {
       playSound('attack');
       const heroEl = document.getElementById(opp === 'p1' ? 'my-hero' : 'opponent-hero');
@@ -2782,11 +2794,12 @@ function targetHero(side) {
   const opp = player === 'p1' ? 'p2' : 'p1';
 
   // If selecting target for a spell
+  // render()에서 뷰 기준으로 my/opp를 매핑하므로, DOM의 'opponent'은 항상 적, 'mine'은 항상 아군
   if (targetingSpell) {
     const { card, cardIndex } = targetingSpell;
-    if (card.target === 'enemy_any' && side === (player === 'p1' ? 'opponent' : 'mine')) {
+    if (card.target === 'enemy_any' && side === 'opponent') {
       castSpell(player, card, cardIndex, 'enemy_hero', 'hero');
-    } else if (card.target === 'friendly_any' && side === (player === 'p1' ? 'mine' : 'opponent')) {
+    } else if (card.target === 'friendly_any' && side === 'mine') {
       castSpell(player, card, cardIndex, 'friendly_hero', 'hero');
     }
     return;
@@ -2923,6 +2936,7 @@ function clearSelection() {
 
 // ===== GAME OVER =====
 function checkGameOver() {
+  if (gameState.gameOver) return; // 이미 게임 오버면 중복 호출 방지
   if (gameState.p1.hp <= 0) {
     gameState.gameOver = true;
     gameState.winner = 'p2';
@@ -2996,7 +3010,10 @@ function showGameOver() {
 }
 
 // ===== PVP TURN TRANSITION =====
+let pendingNextPlayer = null;
+
 function showTurnTransition(nextPlayer) {
+  pendingNextPlayer = nextPlayer;
   const overlay = document.getElementById('turn-transition');
   const text = document.getElementById('transition-text');
   const faction = gameState[nextPlayer].faction;
@@ -3006,8 +3023,10 @@ function showTurnTransition(nextPlayer) {
 
 function confirmTurnTransition() {
   document.getElementById('turn-transition').style.display = 'none';
-  const next = gameState.currentPlayer === 'p1' ? 'p2' : 'p1';
-  startTurn(next);
+  if (pendingNextPlayer) {
+    startTurn(pendingNextPlayer);
+    pendingNextPlayer = null;
+  }
 }
 
 // ===== AI =====
@@ -3556,6 +3575,8 @@ function showMainMenu() {
   document.getElementById('pause-menu').style.display = 'none';
   document.getElementById('settings-menu').style.display = 'none';
   document.getElementById('menu-settings').style.display = 'none';
+  // 잔여 플로팅 텍스트 / 화면 플래시 DOM 정리
+  document.querySelectorAll('.floating-text, .screen-flash').forEach(el => el.remove());
   gameState = null;
   playBGM('menu');
 }

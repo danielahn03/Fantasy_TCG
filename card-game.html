@@ -1886,6 +1886,98 @@ function playSound(type) {
         noise.start(now); noise.stop(now + 0.25);
         break;
       }
+      case 'draw': {
+        // 카드 뽑기 - 짧은 "슥" 스와이프
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2000, now);
+        filter.frequency.linearRampToValueAtTime(5000, now + 0.1);
+        filter.Q.value = 1.5;
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.3 * vol, now);
+        ng.gain.linearRampToValueAtTime(0, now + 0.12);
+        noise.connect(filter).connect(ng).connect(ctx.destination);
+        noise.start(now); noise.stop(now + 0.12);
+        break;
+      }
+      case 'error': {
+        // 마나 부족 - 낮은 "뗑뗑" 거절음
+        [0, 0.12].forEach(t => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = 200;
+          g.gain.setValueAtTime(0.15 * vol, now + t);
+          g.gain.linearRampToValueAtTime(0, now + t + 0.08);
+          osc.connect(g).connect(ctx.destination);
+          osc.start(now + t); osc.stop(now + t + 0.08);
+        });
+        break;
+      }
+      case 'taunt': {
+        // 도발 경고 - 묵직한 "둥" 경고음
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+        g.gain.setValueAtTime(0.25 * vol, now);
+        g.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.3);
+        break;
+      }
+      case 'buff': {
+        // 버프/힐 - 밝은 상승 "띠링"
+        const notes = [523, 659, 784];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          g.gain.setValueAtTime(0.12 * vol, now + i * 0.08);
+          g.gain.linearRampToValueAtTime(0, now + i * 0.08 + 0.15);
+          osc.connect(g).connect(ctx.destination);
+          osc.start(now + i * 0.08); osc.stop(now + i * 0.08 + 0.15);
+        });
+        break;
+      }
+      case 'debuff': {
+        // 디버프/공격 주문 - 어두운 하강 "쥬웅"
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.25);
+        g.gain.setValueAtTime(0.12 * vol, now);
+        g.gain.linearRampToValueAtTime(0, now + 0.3);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(2000, now);
+        lp.frequency.linearRampToValueAtTime(400, now + 0.25);
+        osc.connect(lp).connect(g).connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.3);
+        break;
+      }
+      case 'coin': {
+        // 동전 짤랑 - 고음 금속성 "찰랑"
+        [0, 0.06].forEach(t => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = t === 0 ? 1800 : 2400;
+          g.gain.setValueAtTime(0.15 * vol, now + t);
+          g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.15);
+          osc.connect(g).connect(ctx.destination);
+          osc.start(now + t); osc.stop(now + t + 0.15);
+        });
+        break;
+      }
       case 'gamestart': {
         // 기대감 있는 상승 아르페지오
         const notes = [330, 440, 554, 659, 880];
@@ -2251,7 +2343,7 @@ function initGame() {
   }
 
   gameState = {
-    turn: 1,
+    turn: 0,
     currentPlayer: 'p1',
     p1: {
       faction: p1Faction,
@@ -2326,6 +2418,7 @@ function drawCard(player) {
   const drawn = p.deck.pop();
   lastDrawnUid = drawn.uid;
   if (gameState.stats) gameState.stats[player].cardsDrawn++;
+  if (gameState.turn > 0) playSound('draw');
   p.hand.push(drawn);
 }
 
@@ -2333,6 +2426,7 @@ function startTurn(player) {
   const p = gameState[player];
   gameState.currentPlayer = player;
   isAttacking = false;
+  if (gameState.turn === 0) gameState.turn = 1;
 
   // Increase mana
   if (p.maxMana < 10) p.maxMana++;
@@ -2391,10 +2485,11 @@ function playCard(cardIndex) {
   const card = p.hand[cardIndex];
 
   if (!card) return;
-  if (card.cost > p.mana) return;
+  if (card.cost > p.mana) { playSound('error'); return; }
 
   if (card.type === 'minion') {
     if (p.field.length >= 7) {
+      playSound('error');
       addLog('필드가 가득 찼습니다!');
       return;
     }
@@ -2496,7 +2591,9 @@ function castSpell(player, card, cardIndex, targetType, target) {
 
   gameState.stats[player].spellsCast++;
   addLog(`${card.name} 시전!`);
-  playSound('spell');
+  // 주문 종류에 따른 효과음
+  const isBuffSpell = card.effect === 'buff' || card.effect === 'heal';
+  playSound(isBuffSpell ? 'buff' : 'debuff');
 
   switch(card.effect) {
     case 'damage':
@@ -2547,6 +2644,7 @@ function castSpell(player, card, cardIndex, targetType, target) {
       break;
     case 'coin':
       p.mana = Math.min(10, p.mana + 1);
+      playSound('coin');
       addLog('마나 1 획득!');
       break;
   }
@@ -2586,10 +2684,12 @@ function attackTarget(target, targetPlayer) {
   // Check taunt
   const hasTaunt = gameState[opp].field.some(m => m.keywords.includes('taunt'));
   if (hasTaunt && target !== 'hero' && !target.keywords.includes('taunt')) {
+    playSound('taunt');
     addLog('도발 미니언을 먼저 공격해야 합니다!');
     return;
   }
   if (hasTaunt && target === 'hero') {
+    playSound('taunt');
     addLog('도발 미니언을 먼저 공격해야 합니다!');
     return;
   }

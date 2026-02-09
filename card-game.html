@@ -1267,14 +1267,14 @@ body {
 <div id="menu-dict-select" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);">
   <h2 style="margin-bottom:30px;">📖 카드 도감</h2>
   <div class="faction-cards" id="menu-dict-factions"></div>
-  <button class="back-btn" onclick="playSound('click'); closeMenuDictSelect()" style="margin-top:30px;">뒤로</button>
+  <button class="back-btn" onclick="playSound('book'); closeMenuDictSelect()" style="margin-top:30px;">뒤로</button>
 </div>
 
 <!-- MENU DICTIONARY: Card List -->
 <div id="menu-dictionary" style="display:none; flex-direction:column; align-items:center; height:100vh; background:linear-gradient(135deg,#0f0c29,#302b63,#24243e); padding:30px; overflow-y:auto;">
   <h2 id="menu-dict-title" style="margin-bottom:20px;">📖 카드 도감</h2>
   <div id="menu-dict-content" style="width:100%; max-width:700px;"></div>
-  <button class="back-btn" onclick="playSound('click'); backToMenuDictSelect()" style="margin-top:20px; margin-bottom:30px;">뒤로</button>
+  <button class="back-btn" onclick="playSound('book'); backToMenuDictSelect()" style="margin-top:20px; margin-bottom:30px;">뒤로</button>
 </div>
 
 <!-- FACTION SELECT -->
@@ -2957,6 +2957,18 @@ document.addEventListener('contextmenu', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    // 메뉴 도감: 카드 목록 → 진영 선택
+    const menuDict = document.getElementById('menu-dictionary');
+    if (menuDict.style.display === 'flex') {
+      playSound('book'); backToMenuDictSelect(); return;
+    }
+    // 메뉴 도감: 진영 선택 → 메인 메뉴
+    const menuDictSelect = document.getElementById('menu-dict-select');
+    if (menuDictSelect.style.display === 'flex') {
+      playSound('book'); closeMenuDictSelect(); return;
+    }
+
+    // 게임 내 ESC
     const gameBoard = document.getElementById('game-board');
     if (gameBoard.style.display !== 'flex') return;
     const settings = document.getElementById('settings-menu');

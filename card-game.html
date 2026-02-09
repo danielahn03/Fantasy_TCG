@@ -1396,7 +1396,7 @@ body {
   <h2>일시정지</h2>
   <button class="pause-btn" onclick="playSound('click'); closePauseMenu()">계속</button>
   <button class="pause-btn" onclick="playSound('click'); openSettings()">설정</button>
-  <button class="pause-btn" onclick="playSound('click'); closePauseMenu(); rematch();">다시하기</button>
+  <button class="pause-btn" onclick="playSound('gamestart'); closePauseMenu(); rematch();">다시하기</button>
   <button class="pause-btn pause-btn-danger" onclick="playSound('click'); closePauseMenu(); showMainMenu();">메인 메뉴</button>
 </div>
 
@@ -1422,7 +1422,7 @@ body {
 <div id="game-over">
   <h2 id="game-over-title"></h2>
   <p class="result-text" id="game-over-text"></p>
-  <button onclick="rematch()">재대전</button>
+  <button onclick="playSound('gamestart'); rematch()">재대전</button>
   <button onclick="showMainMenu()">메인 메뉴</button>
 </div>
 

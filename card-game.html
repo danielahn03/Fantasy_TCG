@@ -453,8 +453,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.2em;
-  text-shadow: 0 0 10px rgba(0,0,0,0.5);
+  overflow: hidden;
+  position: relative;
+}
+.card-back::after {
+  content: attr(data-emoji);
+  font-size: 7em;
+  opacity: 0.5;
+  filter: saturate(0.5) brightness(1.2);
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.card-back::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .card-back-human { background: linear-gradient(135deg, #3d2e0a, #5c4a1a); border-color: #c9a84c; }
@@ -958,6 +978,7 @@ body {
   .card { width: 65px; min-width: 65px; height: 95px; font-size: 0.6em; }
   .field-minion { width: 60px; min-width: 60px; height: 80px; font-size: 0.6em; }
   .card-back { width: 40px; min-width: 40px; height: 60px; }
+  .card-back::after { font-size: 3.2em; }
   .log-area { display: none; }
 }
 
@@ -2952,7 +2973,7 @@ function renderHand(elementId, p, playerKey, isMine) {
     for (let i = 0; i < p.hand.length; i++) {
       const back = document.createElement('div');
       back.className = `card-back card-back-${p.faction}`;
-      back.textContent = getHeroEmoji(p.faction);
+      back.setAttribute('data-emoji', '🂠');
       hand.appendChild(back);
     }
     return;

@@ -308,25 +308,6 @@ body {
   border-color: #3498db;
 }
 
-.hero-power-tooltip {
-  display: none;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.92);
-  border: 1px solid #888;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 12px;
-  color: #fff;
-  white-space: nowrap;
-  z-index: 100;
-  pointer-events: none;
-}
-
-.hero-power-btn:hover .hero-power-tooltip {
-  display: block;
-}
 
 .hero-power-btn.used {
   opacity: 0.4;
@@ -2590,7 +2571,9 @@ function render() {
   const isMyTurn = (gameMode === 'ai' && player === 'p1' && myKey === 'p1') ||
                    (gameMode === 'pvp' && myKey === player);
 
-  myPowerBtn.innerHTML = `${getHeroPowerName(my.faction)} (2)<span class="hero-power-tooltip" style="bottom:120%;">${FACTION_CONFIG[my.faction].powerDesc}</span>`;
+  myPowerBtn.textContent = `${getHeroPowerName(my.faction)} (2)`;
+  myPowerBtn.onmouseenter = (e) => showHeroPowerTooltip(my.faction, e);
+  myPowerBtn.onmouseleave = () => hideTooltip();
   if (my.heroPowerUsed) {
     myPowerBtn.className = 'hero-power-btn used';
   } else if (my.mana < 2 || !isMyTurn) {
@@ -2599,7 +2582,9 @@ function render() {
     myPowerBtn.className = 'hero-power-btn';
   }
 
-  oppPowerBtn.innerHTML = `${getHeroPowerName(opp.faction)} (2)<span class="hero-power-tooltip" style="top:120%;">${FACTION_CONFIG[opp.faction].powerDesc}</span>`;
+  oppPowerBtn.textContent = `${getHeroPowerName(opp.faction)} (2)`;
+  oppPowerBtn.onmouseenter = (e) => showHeroPowerTooltip(opp.faction, e);
+  oppPowerBtn.onmouseleave = () => hideTooltip();
   oppPowerBtn.className = 'hero-power-btn disabled';
 
   // End turn button
@@ -2827,6 +2812,17 @@ function showTooltip(card, e) {
   }
   tooltip.querySelector('.tooltip-stats').textContent = stats;
 
+  tooltip.style.display = 'block';
+  tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 220) + 'px';
+  tooltip.style.top = Math.min(e.clientY + 10, window.innerHeight - 100) + 'px';
+}
+
+function showHeroPowerTooltip(faction, e) {
+  const cfg = FACTION_CONFIG[faction];
+  const tooltip = document.getElementById('card-tooltip');
+  tooltip.querySelector('.tooltip-name').textContent = cfg.powerName;
+  tooltip.querySelector('.tooltip-desc').textContent = cfg.powerDesc;
+  tooltip.querySelector('.tooltip-stats').textContent = '';
   tooltip.style.display = 'block';
   tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 220) + 'px';
   tooltip.style.top = Math.min(e.clientY + 10, window.innerHeight - 100) + 'px';

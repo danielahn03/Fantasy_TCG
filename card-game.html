@@ -1674,9 +1674,48 @@ let bgmEnabled = true;
 let bgmVolume = 0.3;
 let bgmNodes = null;
 let bgmInterval = null;
+let currentBGMTrack = null;
 
-function playBGM() {
+const BGM_TRACKS = {
+  menu: {
+    // 메인 테마: 잔잔한 판타지 하프 아르페지오
+    patterns: [
+      [220, 261.6, 329.6, 440, 329.6, 261.6],
+      [196, 293.7, 349.2, 440, 349.2, 293.7],
+      [164.8, 246.9, 329.6, 493.9, 329.6, 246.9],
+      [440, 392, 329.6, 293.7, 261.6, 220],
+    ],
+    tempo: 600,
+    noteDecay: 0.8,
+    noteVol: 0.35,
+    harmonicVol: 0.08,
+    waveform: 'triangle',
+  },
+  battle: {
+    // 배틀 테마: 어둡고 긴장감 있는 마이너 진행
+    patterns: [
+      // Am 상승
+      [220, 246.9, 261.6, 293.7, 329.6, 293.7, 261.6, 0],
+      // Dm 흐름
+      [293.7, 329.6, 349.2, 329.6, 293.7, 261.6, 246.9, 0],
+      // E 긴장
+      [329.6, 311.1, 329.6, 349.2, 392, 349.2, 329.6, 0],
+      // Am 하강 해결
+      [440, 392, 349.2, 329.6, 293.7, 261.6, 246.9, 220],
+    ],
+    tempo: 450,
+    noteDecay: 0.55,
+    noteVol: 0.28,
+    harmonicVol: 0.1,
+    waveform: 'triangle',
+  },
+};
+
+function playBGM(track) {
+  track = track || currentBGMTrack || 'menu';
+  if (currentBGMTrack === track && bgmNodes) return; // 같은 트랙 재생 중이면 무시
   stopBGM();
+  currentBGMTrack = track;
   if (!bgmEnabled) return;
   try {
     const ctx = getAudioCtx();
@@ -1684,57 +1723,47 @@ function playBGM() {
     masterGain.gain.value = bgmVolume * 0.4;
     masterGain.connect(ctx.destination);
 
-    // 아르페지오 멜로디 (Am 계열 마이너 판타지풍)
-    const melodyPatterns = [
-      // 패턴 1: Am 아르페지오
-      [220, 261.6, 329.6, 440, 329.6, 261.6],
-      // 패턴 2: Dm 느낌
-      [196, 293.7, 349.2, 440, 349.2, 293.7],
-      // 패턴 3: Em 느낌
-      [164.8, 246.9, 329.6, 493.9, 329.6, 246.9],
-      // 패턴 4: Am 하강
-      [440, 392, 329.6, 293.7, 261.6, 220],
-    ];
-
+    const cfg = BGM_TRACKS[track];
     let patIdx = 0;
     let noteIdx = 0;
 
     function playNote() {
       if (!bgmEnabled || !bgmNodes) return;
-      const pattern = melodyPatterns[patIdx];
+      const pattern = cfg.patterns[patIdx];
       const freq = pattern[noteIdx];
 
-      // 하프/류트 느낌: triangle + 빠른 감쇄
-      const osc = ctx.createOscillator();
-      const noteGain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      const t = ctx.currentTime;
-      noteGain.gain.setValueAtTime(0.35, t);
-      noteGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-      osc.connect(noteGain).connect(masterGain);
-      osc.start(t);
-      osc.stop(t + 0.85);
+      if (freq > 0) {
+        const osc = ctx.createOscillator();
+        const noteGain = ctx.createGain();
+        osc.type = cfg.waveform;
+        osc.frequency.value = freq;
+        const t = ctx.currentTime;
+        noteGain.gain.setValueAtTime(cfg.noteVol, t);
+        noteGain.gain.exponentialRampToValueAtTime(0.01, t + cfg.noteDecay);
+        osc.connect(noteGain).connect(masterGain);
+        osc.start(t);
+        osc.stop(t + cfg.noteDecay + 0.05);
 
-      // 옥타브 위 잔향
-      const osc2 = ctx.createOscillator();
-      const ng2 = ctx.createGain();
-      osc2.type = 'sine';
-      osc2.frequency.value = freq * 2;
-      ng2.gain.setValueAtTime(0.08, t);
-      ng2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      osc2.connect(ng2).connect(masterGain);
-      osc2.start(t);
-      osc2.stop(t + 0.55);
+        // 옥타브 위 잔향
+        const osc2 = ctx.createOscillator();
+        const ng2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.value = freq * 2;
+        ng2.gain.setValueAtTime(cfg.harmonicVol, t);
+        ng2.gain.exponentialRampToValueAtTime(0.001, t + cfg.noteDecay * 0.6);
+        osc2.connect(ng2).connect(masterGain);
+        osc2.start(t);
+        osc2.stop(t + cfg.noteDecay * 0.65);
+      }
 
       noteIdx++;
       if (noteIdx >= pattern.length) {
         noteIdx = 0;
-        patIdx = (patIdx + 1) % melodyPatterns.length;
+        patIdx = (patIdx + 1) % cfg.patterns.length;
       }
     }
 
-    bgmInterval = setInterval(playNote, 600);
+    bgmInterval = setInterval(playNote, cfg.tempo);
     playNote();
 
     bgmNodes = { masterGain, ctx };
@@ -1973,7 +2002,7 @@ function initGame() {
   addLog('게임 시작!');
   addLog(`${getFactionName(p1Faction)} vs ${getFactionName(p2Faction)}`);
 
-  playBGM();
+  playBGM('battle');
 }
 
 function getFactionName(f) { return FACTION_CONFIG[f].name; }
@@ -3047,6 +3076,7 @@ function showMainMenu() {
   document.getElementById('settings-menu').style.display = 'none';
   document.getElementById('menu-settings').style.display = 'none';
   gameState = null;
+  playBGM('menu');
 }
 
 function startGame(mode) {
@@ -3336,9 +3366,9 @@ function toggleSfx(enabled) {
 function toggleBGM(enabled) {
   bgmEnabled = enabled;
   document.querySelectorAll('#bgm-toggle, #menu-bgm-toggle').forEach(el => el.checked = enabled);
-  if (enabled && gameState && !gameState.gameOver) {
-    playBGM();
-  } else if (!enabled) {
+  if (enabled) {
+    playBGM(gameState ? 'battle' : 'menu');
+  } else {
     stopBGM();
   }
 }
@@ -3352,7 +3382,7 @@ function setBGMVolume(val) {
 
 // 첫 클릭 시 BGM 시작 (브라우저 오디오 정책)
 document.addEventListener('click', function startBGMOnce() {
-  if (bgmEnabled && !bgmNodes) playBGM();
+  if (bgmEnabled && !bgmNodes) playBGM('menu');
   document.removeEventListener('click', startBGMOnce);
 }, { once: true });
 </script>

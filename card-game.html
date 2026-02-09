@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>인간 vs 악마 - 카드 배틀</title>
+<title>크로니클 듀얼 - Chronicle Duel</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1237,8 +1237,8 @@ body {
 
 <!-- MAIN MENU -->
 <div id="main-menu">
-  <h1>인간 vs 악마</h1>
-  <p class="subtitle">카드 배틀</p>
+  <h1>크로니클 듀얼</h1>
+  <p class="subtitle">Chronicle Duel</p>
   <button class="menu-btn" onclick="playSound('click'); startGame('ai')">AI 대전</button>
   <button class="menu-btn" onclick="playSound('click'); startGame('pvp')">2인 대전</button>
   <button class="menu-btn" onclick="playSound('book'); openMenuDictionary()">📖 카드 도감</button>
@@ -1256,9 +1256,21 @@ body {
     </label>
   </div>
   <div class="settings-row">
-    <span>음량</span>
+    <span>효과음 음량</span>
     <input type="range" id="menu-volume-slider" min="0" max="100" value="50" oninput="setVolume(this.value)">
     <span id="menu-volume-label">50%</span>
+  </div>
+  <div class="settings-row">
+    <span>배경음악</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="menu-bgm-toggle" checked onchange="toggleBGM(this.checked)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <span>BGM 음량</span>
+    <input type="range" id="menu-bgm-slider" min="0" max="100" value="30" oninput="setBGMVolume(this.value)">
+    <span id="menu-bgm-label">30%</span>
   </div>
   <button class="back-btn" onclick="playSound('click'); closeMenuSettings()" style="margin-top:30px;">뒤로</button>
 </div>
@@ -1411,9 +1423,21 @@ body {
     </label>
   </div>
   <div class="settings-row">
-    <span>음량</span>
+    <span>효과음 음량</span>
     <input type="range" id="volume-slider" min="0" max="100" value="50" oninput="setVolume(this.value)">
     <span id="volume-label">50%</span>
+  </div>
+  <div class="settings-row">
+    <span>배경음악</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="bgm-toggle" checked onchange="toggleBGM(this.checked)">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+  <div class="settings-row">
+    <span>BGM 음량</span>
+    <input type="range" id="bgm-slider" min="0" max="100" value="30" oninput="setBGMVolume(this.value)">
+    <span id="bgm-label">30%</span>
   </div>
   <button class="pause-btn" onclick="playSound('click'); closeSettings()">뒤로</button>
 </div>
@@ -1645,6 +1669,95 @@ function playSound(type) {
   } catch(e) {}
 }
 
+// ===== BGM (Web Audio API) =====
+let bgmEnabled = true;
+let bgmVolume = 0.3;
+let bgmNodes = null;
+let bgmInterval = null;
+
+function playBGM() {
+  stopBGM();
+  if (!bgmEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = bgmVolume * 0.4;
+    masterGain.connect(ctx.destination);
+
+    // 아르페지오 멜로디 (Am 계열 마이너 판타지풍)
+    const melodyPatterns = [
+      // 패턴 1: Am 아르페지오
+      [220, 261.6, 329.6, 440, 329.6, 261.6],
+      // 패턴 2: Dm 느낌
+      [196, 293.7, 349.2, 440, 349.2, 293.7],
+      // 패턴 3: Em 느낌
+      [164.8, 246.9, 329.6, 493.9, 329.6, 246.9],
+      // 패턴 4: Am 하강
+      [440, 392, 329.6, 293.7, 261.6, 220],
+    ];
+
+    let patIdx = 0;
+    let noteIdx = 0;
+
+    function playNote() {
+      if (!bgmEnabled || !bgmNodes) return;
+      const pattern = melodyPatterns[patIdx];
+      const freq = pattern[noteIdx];
+
+      // 하프/류트 느낌: triangle + 빠른 감쇄
+      const osc = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime;
+      noteGain.gain.setValueAtTime(0.35, t);
+      noteGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+      osc.connect(noteGain).connect(masterGain);
+      osc.start(t);
+      osc.stop(t + 0.85);
+
+      // 옥타브 위 잔향
+      const osc2 = ctx.createOscillator();
+      const ng2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq * 2;
+      ng2.gain.setValueAtTime(0.08, t);
+      ng2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc2.connect(ng2).connect(masterGain);
+      osc2.start(t);
+      osc2.stop(t + 0.55);
+
+      noteIdx++;
+      if (noteIdx >= pattern.length) {
+        noteIdx = 0;
+        patIdx = (patIdx + 1) % melodyPatterns.length;
+      }
+    }
+
+    bgmInterval = setInterval(playNote, 600);
+    playNote();
+
+    bgmNodes = { masterGain, ctx };
+  } catch(e) {}
+}
+
+function stopBGM() {
+  if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
+  if (bgmNodes) {
+    try {
+      bgmNodes.masterGain.disconnect();
+    } catch(e) {}
+    bgmNodes = null;
+  }
+}
+
+function updateBGMVolume(v) {
+  bgmVolume = v;
+  if (bgmNodes) {
+    bgmNodes.masterGain.gain.value = bgmVolume * 0.4;
+  }
+}
+
 // ===== CARD DEFINITIONS =====
 const HUMAN_CARDS = [
   // Minions
@@ -1859,6 +1972,8 @@ function initGame() {
   logs = [];
   addLog('게임 시작!');
   addLog(`${getFactionName(p1Faction)} vs ${getFactionName(p2Faction)}`);
+
+  playBGM();
 }
 
 function getFactionName(f) { return FACTION_CONFIG[f].name; }
@@ -3186,6 +3301,7 @@ function closeMenuSettings() {
 
 function syncSettingsUI() {
   const val = Math.round(sfxVolume * 100);
+  const bgmVal = Math.round(bgmVolume * 100);
   // 메인 메뉴 설정
   const menuSfx = document.getElementById('menu-sfx-toggle');
   const menuVol = document.getElementById('menu-volume-slider');
@@ -3200,6 +3316,10 @@ function syncSettingsUI() {
   if (gameSfx) gameSfx.checked = sfxEnabled;
   if (gameVol) gameVol.value = val;
   if (gameLabel) gameLabel.textContent = val + '%';
+  // BGM
+  document.querySelectorAll('#bgm-toggle, #menu-bgm-toggle').forEach(el => el.checked = bgmEnabled);
+  document.querySelectorAll('#bgm-slider, #menu-bgm-slider').forEach(el => el.value = bgmVal);
+  document.querySelectorAll('#bgm-label, #menu-bgm-label').forEach(el => el.textContent = bgmVal + '%');
 }
 
 function setVolume(val) {
@@ -3212,6 +3332,29 @@ function toggleSfx(enabled) {
   sfxEnabled = enabled;
   document.querySelectorAll('#sfx-toggle, #menu-sfx-toggle').forEach(el => el.checked = enabled);
 }
+
+function toggleBGM(enabled) {
+  bgmEnabled = enabled;
+  document.querySelectorAll('#bgm-toggle, #menu-bgm-toggle').forEach(el => el.checked = enabled);
+  if (enabled && gameState && !gameState.gameOver) {
+    playBGM();
+  } else if (!enabled) {
+    stopBGM();
+  }
+}
+
+function setBGMVolume(val) {
+  bgmVolume = val / 100;
+  updateBGMVolume(bgmVolume);
+  document.querySelectorAll('#bgm-label, #menu-bgm-label').forEach(el => el.textContent = val + '%');
+  document.querySelectorAll('#bgm-slider, #menu-bgm-slider').forEach(el => el.value = val);
+}
+
+// 첫 클릭 시 BGM 시작 (브라우저 오디오 정책)
+document.addEventListener('click', function startBGMOnce() {
+  if (bgmEnabled && !bgmNodes) playBGM();
+  document.removeEventListener('click', startBGMOnce);
+}, { once: true });
 </script>
 </body>
 </html>

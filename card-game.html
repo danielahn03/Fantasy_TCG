@@ -1241,7 +1241,7 @@ body {
   <p class="subtitle">카드 배틀</p>
   <button class="menu-btn" onclick="playSound('click'); startGame('ai')">AI 대전</button>
   <button class="menu-btn" onclick="playSound('click'); startGame('pvp')">2인 대전</button>
-  <button class="menu-btn" onclick="playSound('click'); openMenuDictionary()">📖 카드 도감</button>
+  <button class="menu-btn" onclick="playSound('book'); openMenuDictionary()">📖 카드 도감</button>
   <button class="menu-btn" onclick="playSound('click'); openMenuSettings()">⚙️ 설정</button>
 </div>
 
@@ -1587,6 +1587,27 @@ function playSound(type) {
         gain.gain.linearRampToValueAtTime(0, now + 0.1);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now); osc.stop(now + 0.1);
+        break;
+      }
+      case 'book': {
+        // 책 넘기는 소리 - 필터드 노이즈
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.25, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(3000, now);
+        filter.frequency.linearRampToValueAtTime(1500, now + 0.2);
+        filter.Q.value = 0.8;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.3 * vol, now + 0.03);
+        gain.gain.linearRampToValueAtTime(0.15 * vol, now + 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + 0.25);
+        noise.connect(filter).connect(gain).connect(ctx.destination);
+        noise.start(now); noise.stop(now + 0.25);
         break;
       }
       case 'gamestart': {
@@ -2934,8 +2955,27 @@ document.addEventListener('contextmenu', (e) => {
   }
 });
 
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const gameBoard = document.getElementById('game-board');
+    if (gameBoard.style.display !== 'flex') return;
+    const settings = document.getElementById('settings-menu');
+    if (settings.style.display === 'flex') {
+      closeSettings();
+    } else {
+      const pause = document.getElementById('pause-menu');
+      if (pause.style.display === 'flex') {
+        closePauseMenu();
+      } else {
+        openPauseMenu();
+      }
+    }
+  }
+});
+
 // ===== DECK VIEWER =====
 function toggleDeckViewer() {
+  playSound('book');
   const viewer = document.getElementById('deck-viewer');
   if (viewer.style.display === 'flex') {
     viewer.style.display = 'none';
@@ -2994,6 +3034,7 @@ function openDeckViewer() {
 
 // ===== CARD DICTIONARY =====
 function toggleDictionary() {
+  playSound('book');
   const dict = document.getElementById('card-dictionary');
   const toggle = document.getElementById('dict-toggle');
   if (dict.style.display === 'flex') {
@@ -3089,7 +3130,7 @@ function openMenuDictionary() {
       <h3>${cfg.name}</h3>
       <p>${cfg.cards.length}종</p>
     `;
-    card.onclick = () => { playSound('click'); openMenuDictFaction(f); };
+    card.onclick = () => { playSound('book'); openMenuDictFaction(f); };
     container.appendChild(card);
   });
 }

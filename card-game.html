@@ -1767,7 +1767,7 @@ const BGM_TRACKS = {
       [440, 392, 329.6, 293.7, 261.6, 220],
     ],
     tempo: 600,
-    noteDecay: 0.8,
+    noteDecay: 1.2,
     noteVol: 0.35,
     harmonicVol: 0.08,
     waveform: 'triangle',
@@ -2093,6 +2093,7 @@ function getHeroEmoji(f) { return FACTION_CONFIG[f].emoji; }
 function getHeroPowerName(f) { return FACTION_CONFIG[f].powerName; }
 
 let lastDrawnUid = null;
+let lastSummonedUid = null;
 
 function drawCard(player) {
   const p = gameState[player];
@@ -2229,6 +2230,7 @@ function summonMinion(player, card, cardIndex) {
   };
 
   p.field.push(minion);
+  lastSummonedUid = minion.uid;
   addLog(`${card.name} 소환! (${card.attack}/${card.health})`);
   playSound('summon');
 
@@ -2519,6 +2521,7 @@ function executeHeroPower(p, player, opp, isAI) {
         canAttack: false, summonedThisTurn: true, attacksThisTurn: 0,
       };
       p.field.push(ghoul);
+      lastSummonedUid = ghoul.uid;
       addLog(`구울 소환! (1/1)`);
       playSound('summon');
     } else {
@@ -2542,6 +2545,7 @@ function executeHeroPower(p, player, opp, isAI) {
         canAttack: true, summonedThisTurn: true, attacksThisTurn: 0,
       };
       p.field.push(squirrel);
+      lastSummonedUid = squirrel.uid;
       addLog(`다람쥐 소환! (1/1) - 돌진`);
       playSound('summon');
     } else {
@@ -2831,6 +2835,7 @@ function aiAttack() {
 // ===== RENDERING =====
 function render() {
   if (!gameState) return;
+  hideTooltip();
 
   const player = gameState.currentPlayer;
   const isP1View = gameMode === 'ai' || player === 'p1';
@@ -3005,7 +3010,8 @@ function renderField(elementId, p, playerKey, isMine) {
     const isSelected = selectedAttacker && selectedAttacker.uid === m.uid;
     const isTargetable = !isMine && (selectedAttacker || targetingSpell || battlecryTarget);
 
-    const summonAnim = m.summonedThisTurn ? 'summon-anim' : '';
+    const summonAnim = (m.uid === lastSummonedUid) ? 'summon-anim' : '';
+    if (m.uid === lastSummonedUid) lastSummonedUid = null;
     el.className = `field-minion ${factionClass} ${canAtk ? 'can-attack' : ''} ${m.keywords.includes('taunt') ? 'taunt' : ''} ${isSelected ? 'selected' : ''} ${isTargetable ? 'targetable' : ''} ${summonAnim}`;
 
     const keywordText = m.keywords.filter(k => k !== '').map(k => {

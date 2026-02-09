@@ -1515,33 +1515,33 @@ body {
 <div id="faction-select">
   <h2>세력을 선택하세요</h2>
   <div class="faction-cards">
-    <div class="faction-card human" onclick="playSound('gamestart'); selectFaction('human')">
+    <div class="faction-card human" onclick="selectFaction('human')">
       <div class="faction-icon">⚔️</div>
       <h3>인간</h3>
       <p>신성한 마법과 기사단의 힘<br><br>🛡️ 체력 2 회복</p>
     </div>
-    <div class="faction-card demon" onclick="playSound('gamestart'); selectFaction('demon')">
+    <div class="faction-card demon" onclick="selectFaction('demon')">
       <div class="faction-icon">👿</div>
       <h3>악마</h3>
       <p>지옥의 군단과 어둠의 힘<br><br>💀 1/1 구울 소환</p>
     </div>
-    <div class="faction-card elf" onclick="playSound('gamestart'); selectFaction('elf')">
+    <div class="faction-card elf" onclick="selectFaction('elf')">
       <div class="faction-icon">🧝</div>
       <h3>엘프</h3>
       <p>숲의 정밀한 궁술과 마법<br><br>🏹 적에게 1 데미지</p>
     </div>
-    <div class="faction-card druid" onclick="playSound('gamestart'); selectFaction('druid')">
+    <div class="faction-card druid" onclick="selectFaction('druid')">
       <div class="faction-icon">🌿</div>
       <h3>드루이드</h3>
       <p>자연과 야수의 원시적 힘<br><br>🐿️ 1/1 다람쥐 소환 (돌진)</p>
     </div>
-    <div class="faction-card dwarf" onclick="playSound('gamestart'); selectFaction('dwarf')">
+    <div class="faction-card dwarf" onclick="selectFaction('dwarf')">
       <div class="faction-icon">⛏️</div>
       <h3>드워프</h3>
       <p>광산의 기술과 강철의 힘<br><br>🛡️ 아군 +1 체력 강화</p>
     </div>
   </div>
-  <button class="back-btn" onclick="playSound('click'); showMainMenu()">뒤로</button>
+  <button class="back-btn" onclick="playSound('click'); factionSelectBack()">뒤로</button>
 </div>
 
 <!-- GAME BOARD -->
@@ -2278,6 +2278,7 @@ const COIN_CARD = { id:'coin', name:'동전', type:'spell', cost:0, emoji:'🪙'
 let gameState = null;
 let gameMode = 'ai'; // 'ai' or 'pvp'
 let selectedFaction = 'human';
+let pvpP1Faction = null;
 let selectedAttacker = null;
 let targetingSpell = null;
 let battlecryTarget = null;
@@ -3578,29 +3579,76 @@ function showMainMenu() {
   // 잔여 플로팅 텍스트 / 화면 플래시 DOM 정리
   document.querySelectorAll('.floating-text, .screen-flash').forEach(el => el.remove());
   gameState = null;
+  pvpP1Faction = null;
+  // 세력 선택 제목/버튼 원복
+  const factionTitle = document.querySelector('#faction-select h2');
+  if (factionTitle) factionTitle.textContent = '세력을 선택하세요';
+  const factionBackBtn = document.querySelector('#faction-select .back-btn');
+  if (factionBackBtn) factionBackBtn.textContent = '뒤로';
   playBGM('menu');
 }
 
 function startGame(mode) {
   gameMode = mode;
+  pvpP1Faction = null;
   document.getElementById('main-menu').style.display = 'none';
   document.getElementById('faction-select').style.display = 'flex';
+  const title = document.querySelector('#faction-select h2');
+  title.textContent = mode === 'pvp' ? '플레이어 1 - 세력을 선택하세요' : '세력을 선택하세요';
+}
+
+function factionSelectBack() {
+  if (gameMode === 'pvp' && pvpP1Faction !== null) {
+    // P2 선택 → P1 선택으로 복귀
+    pvpP1Faction = null;
+    const title = document.querySelector('#faction-select h2');
+    title.textContent = '플레이어 1 - 세력을 선택하세요';
+    const backBtn = document.querySelector('#faction-select .back-btn');
+    backBtn.textContent = '뒤로';
+  } else {
+    showMainMenu();
+  }
 }
 
 function selectFaction(faction) {
-  selectedFaction = faction;
+  // PVP 모드: P1 선택 단계
+  if (gameMode === 'pvp' && pvpP1Faction === null) {
+    playSound('click');
+    pvpP1Faction = faction;
+    const title = document.querySelector('#faction-select h2');
+    title.textContent = '플레이어 2 - 세력을 선택하세요';
+    const backBtn = document.querySelector('#faction-select .back-btn');
+    backBtn.textContent = '뒤로 (P1 다시 선택)';
+    return;
+  }
+
+  // PVP 모드: P2 선택 단계
+  if (gameMode === 'pvp' && pvpP1Faction !== null) {
+    selectedFaction = pvpP1Faction;
+    window._vsOpponent = faction;
+  } else {
+    // AI 모드: 기존 동작
+    selectedFaction = faction;
+  }
+
   document.getElementById('faction-select').style.display = 'none';
-  showVSIntro(faction, () => {
+  showVSIntro(selectedFaction, () => {
     document.getElementById('game-board').style.display = 'flex';
     initGame();
   });
 }
 
 function showVSIntro(myFaction, callback) {
-  const otherFactions = Object.keys(FACTION_CONFIG).filter(f => f !== myFaction);
-  const oppFaction = otherFactions[Math.floor(Math.random() * otherFactions.length)];
-  // 저장해서 initGame에서 같은 상대를 사용
-  window._vsOpponent = oppFaction;
+  let oppFaction;
+  if (window._vsOpponent) {
+    // PVP: P2가 직접 선택한 진영 사용
+    oppFaction = window._vsOpponent;
+  } else {
+    // AI: 랜덤 상대
+    const otherFactions = Object.keys(FACTION_CONFIG).filter(f => f !== myFaction);
+    oppFaction = otherFactions[Math.floor(Math.random() * otherFactions.length)];
+    window._vsOpponent = oppFaction;
+  }
 
   const intro = document.getElementById('vs-intro');
   const left = document.getElementById('vs-left');
@@ -3634,6 +3682,10 @@ function showVSIntro(myFaction, callback) {
 }
 
 function rematch() {
+  // PVP: 양측 진영 유지
+  if (gameMode === 'pvp' && gameState) {
+    window._vsOpponent = gameState.p2.faction;
+  }
   document.getElementById('game-over').style.display = 'none';
   showVSIntro(selectedFaction, () => {
     initGame();
@@ -3659,6 +3711,18 @@ document.addEventListener('keydown', (e) => {
     const menuDictSelect = document.getElementById('menu-dict-select');
     if (menuDictSelect.style.display === 'flex') {
       playSound('book'); closeMenuDictSelect(); return;
+    }
+
+    // 세력 선택 화면 ESC
+    const factionSelect = document.getElementById('faction-select');
+    if (factionSelect.style.display === 'flex') {
+      playSound('click'); factionSelectBack(); return;
+    }
+
+    // 메인 메뉴 설정 ESC
+    const menuSettings = document.getElementById('menu-settings');
+    if (menuSettings.style.display === 'flex') {
+      playSound('click'); closeMenuSettings(); return;
     }
 
     // 게임 내 ESC

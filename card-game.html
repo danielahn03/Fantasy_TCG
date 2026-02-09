@@ -1237,11 +1237,18 @@ body {
   <button class="back-btn" onclick="playSound('click'); closeMenuSettings()" style="margin-top:30px;">뒤로</button>
 </div>
 
-<!-- MENU DICTIONARY -->
+<!-- MENU DICTIONARY: Faction Select -->
+<div id="menu-dict-select" style="display:none; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);">
+  <h2 style="margin-bottom:30px;">📖 카드 도감</h2>
+  <div class="faction-cards" id="menu-dict-factions"></div>
+  <button class="back-btn" onclick="playSound('click'); closeMenuDictSelect()" style="margin-top:30px;">뒤로</button>
+</div>
+
+<!-- MENU DICTIONARY: Card List -->
 <div id="menu-dictionary" style="display:none; flex-direction:column; align-items:center; height:100vh; background:linear-gradient(135deg,#0f0c29,#302b63,#24243e); padding:30px; overflow-y:auto;">
-  <h2 style="margin-bottom:20px;">📖 카드 도감</h2>
+  <h2 id="menu-dict-title" style="margin-bottom:20px;">📖 카드 도감</h2>
   <div id="menu-dict-content" style="width:100%; max-width:700px;"></div>
-  <button class="back-btn" onclick="playSound('click'); closeMenuDictionary()" style="margin-top:20px; margin-bottom:30px;">뒤로</button>
+  <button class="back-btn" onclick="playSound('click'); backToMenuDictSelect()" style="margin-top:20px; margin-bottom:30px;">뒤로</button>
 </div>
 
 <!-- FACTION SELECT -->
@@ -2964,18 +2971,43 @@ function renderDictFaction(factionName, cards, fclass) {
 // ===== MENU DICTIONARY =====
 function openMenuDictionary() {
   document.getElementById('main-menu').style.display = 'none';
-  document.getElementById('menu-dictionary').style.display = 'flex';
+  document.getElementById('menu-dict-select').style.display = 'flex';
 
-  let html = '';
+  // 진영 선택 카드 생성
+  const container = document.getElementById('menu-dict-factions');
+  container.innerHTML = '';
   Object.keys(FACTION_CONFIG).forEach(f => {
     const cfg = FACTION_CONFIG[f];
-    html += renderDictFaction(cfg.name, cfg.cards, cfg.cardClass);
+    const card = document.createElement('div');
+    card.className = `faction-card ${f}`;
+    card.innerHTML = `
+      <div class="faction-icon">${cfg.emoji}</div>
+      <h3>${cfg.name}</h3>
+      <p>${cfg.cards.length}종</p>
+    `;
+    card.onclick = () => { playSound('click'); openMenuDictFaction(f); };
+    container.appendChild(card);
   });
+}
+
+function openMenuDictFaction(faction) {
+  document.getElementById('menu-dict-select').style.display = 'none';
+  document.getElementById('menu-dictionary').style.display = 'flex';
+
+  const cfg = FACTION_CONFIG[faction];
+  document.getElementById('menu-dict-title').textContent = `📖 ${cfg.name} 카드 도감`;
+
+  const html = renderDictFaction(cfg.name, cfg.cards, cfg.cardClass);
   document.getElementById('menu-dict-content').innerHTML = html;
 }
 
-function closeMenuDictionary() {
+function backToMenuDictSelect() {
   document.getElementById('menu-dictionary').style.display = 'none';
+  document.getElementById('menu-dict-select').style.display = 'flex';
+}
+
+function closeMenuDictSelect() {
+  document.getElementById('menu-dict-select').style.display = 'none';
   document.getElementById('main-menu').style.display = 'flex';
 }
 

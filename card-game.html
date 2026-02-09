@@ -2854,6 +2854,7 @@ function executeHeroPower(p, player, opp, isAI) {
   } else if (faction === 'elf') {
     // 요정의 화살: 적 영웅에게 1 데미지
     oppState.hp -= 1;
+    gameState.stats[player].totalDamage += 1;
     addLog(`요정의 화살! 적 영웅에게 1 데미지! (${oppState.hp}/30)`);
 
   } else if (faction === 'druid') {
@@ -2880,13 +2881,13 @@ function executeHeroPower(p, player, opp, isAI) {
     if (p.field.length > 0) {
       if (isAI) {
         // AI: 가장 공격력 높은 미니언에게 체력 부여
-        const target = p.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+        const target = [...p.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
         target.currentHealth += 1;
         target.maxHealth += 1;
         addLog(`장갑 강화! ${target.name}의 체력 +1! (${target.currentAttack}/${target.currentHealth})`);
       } else {
         // 플레이어: 자동으로 가장 체력 낮은 미니언에게 부여 (타겟팅 없이 간단 처리)
-        const target = p.field.sort((a, b) => a.currentHealth - b.currentHealth)[0];
+        const target = [...p.field].sort((a, b) => a.currentHealth - b.currentHealth)[0];
         target.currentHealth += 1;
         target.maxHealth += 1;
         addLog(`장갑 강화! ${target.name}의 체력 +1! (${target.currentAttack}/${target.currentHealth})`);
@@ -3041,8 +3042,12 @@ function aiTurn() {
         if (ci >= 0) {
           summonMinion('p2', card, ci);
           if (target) {
+            triggerBattlecryFlash();
+            playSound('debuff');
             target.currentHealth -= card.battlecry_damage;
+            gameState.stats.p2.totalDamage += card.battlecry_damage;
             addLog(`${card.name}의 전투 함성! ${target.name}에게 ${card.battlecry_damage} 데미지!`);
+            showFloatingText(target.uid, `-${card.battlecry_damage}`, 'damage');
             opp.field = opp.field.filter(m => m.currentHealth > 0);
           }
         }
@@ -3061,7 +3066,7 @@ function aiTurn() {
       } else if (card.effect === 'damage') {
         if (card.target === 'enemy_minion' && opp.field.length > 0) {
           // Target highest health minion that can be killed, or highest attack
-          const target = opp.field.sort((a, b) => {
+          const target = [...opp.field].sort((a, b) => {
             if (a.currentHealth <= card.value && b.currentHealth > card.value) return -1;
             if (b.currentHealth <= card.value && a.currentHealth > card.value) return 1;
             return b.currentAttack - a.currentAttack;
@@ -3075,13 +3080,13 @@ function aiTurn() {
           } else if (opp.hp <= card.value) {
             castSpell('p2', card, ci, 'hero', 'hero');
           } else if (opp.field.length > 0) {
-            castSpell('p2', card, ci, 'minion', opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0]);
+            castSpell('p2', card, ci, 'minion', [...opp.field].sort((a, b) => b.currentAttack - a.currentAttack)[0]);
           } else {
             castSpell('p2', card, ci, 'hero', 'hero');
           }
         }
       } else if (card.effect === 'buff' && p.field.length > 0) {
-        const target = p.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+        const target = [...p.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
         castSpell('p2', card, ci, 'minion', target);
       } else if (card.effect === 'heal') {
         if (p.hp < 20 && card.target === 'friendly_any') {
@@ -3165,12 +3170,12 @@ function aiAttack() {
           target = killable[0];
         } else if (attacker.summonedThisTurn && attacker.keywords.includes('rush')) {
           if (opp.field.length > 0) {
-            target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+            target = [...opp.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
           }
         } else if (opp.field.length === 0 || attacker.currentAttack >= 3) {
           target = 'hero';
         } else if (opp.field.length > 0) {
-          target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+          target = [...opp.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
         }
       }
     }

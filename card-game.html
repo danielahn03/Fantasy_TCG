@@ -326,6 +326,30 @@ body {
   border-radius: 5px;
   font-size: 0.8em;
   color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deck-count:hover {
+  background: rgba(255,255,255,0.12);
+  color: #ccc;
+}
+
+#deck-viewer {
+  display: none;
+  position: absolute;
+  right: 10px;
+  bottom: 180px;
+  width: 320px;
+  max-height: 55vh;
+  background: rgba(15,12,30,0.97);
+  border: 2px solid #3498db;
+  border-radius: 12px;
+  z-index: 20;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 -5px 30px rgba(52,152,219,0.3);
+  animation: dictSlideUp 0.25s ease-out;
 }
 
 /* Hand area */
@@ -1329,7 +1353,19 @@ body {
       <div class="mana-bar" id="my-mana-bar"></div>
     </div>
     <button class="hero-power-btn" id="my-power-btn" onclick="useHeroPower()">영웅 능력 (2)</button>
-    <div class="deck-count" id="my-deck-count">덱: 27</div>
+    <div class="deck-count" id="my-deck-count" onclick="toggleDeckViewer()">덱: 27</div>
+  </div>
+
+  <!-- Deck Viewer -->
+  <div id="deck-viewer">
+    <div class="dict-header" style="background:rgba(52,152,219,0.15); border-color:rgba(52,152,219,0.3);">
+      <div>
+        <h2 id="deck-viewer-title">남은 카드</h2>
+        <p class="dict-subtitle" id="deck-viewer-subtitle"></p>
+      </div>
+      <button class="dict-close-x" onclick="toggleDeckViewer()">✕</button>
+    </div>
+    <div class="dict-body" id="deck-viewer-content"></div>
   </div>
 
   <div class="log-area" id="game-log"></div>
@@ -2897,6 +2933,64 @@ document.addEventListener('contextmenu', (e) => {
     cancelTargeting();
   }
 });
+
+// ===== DECK VIEWER =====
+function toggleDeckViewer() {
+  const viewer = document.getElementById('deck-viewer');
+  if (viewer.style.display === 'flex') {
+    viewer.style.display = 'none';
+  } else {
+    openDeckViewer();
+  }
+}
+
+function openDeckViewer() {
+  if (!gameState) return;
+  const myKey = (gameMode === 'ai' || gameState.currentPlayer === 'p1') ? 'p1' : 'p2';
+  const my = gameState[myKey];
+  const remaining = [...my.deck].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name));
+
+  document.getElementById('deck-viewer-subtitle').textContent = `${remaining.length}장 남음`;
+
+  const fclass = getFactionClass(my.faction);
+  let html = '<div class="dict-grid">';
+  remaining.forEach(c => {
+    if (c.type === 'minion') {
+      const kwText = (c.keywords || []).map(k => {
+        switch(k) { case 'taunt': return '도발'; case 'rush': return '돌진'; case 'poison': return '독'; case 'lifesteal': return '흡수'; default: return k; }
+      }).join(', ');
+      const desc = c.desc || kwText || '';
+      html += `
+        <div class="dict-card ${fclass}">
+          <div class="dc-left">
+            <div class="dc-emoji">${c.emoji}</div>
+            <div class="dc-mana">${c.cost}</div>
+          </div>
+          <div class="dc-right">
+            <div class="dc-name">${c.name}</div>
+            <div class="dc-desc">${desc}</div>
+            <div class="dc-stats"><div class="dc-atk">${c.attack}</div><div class="dc-hp">${c.health}</div></div>
+          </div>
+        </div>`;
+    } else {
+      html += `
+        <div class="dict-card ${fclass}">
+          <div class="dc-left">
+            <div class="dc-emoji">${c.emoji}</div>
+            <div class="dc-mana">${c.cost}</div>
+          </div>
+          <div class="dc-right">
+            <div class="dc-name">${c.name}</div>
+            <div class="dc-desc">${c.desc}</div>
+          </div>
+        </div>`;
+    }
+  });
+  html += '</div>';
+
+  document.getElementById('deck-viewer-content').innerHTML = html;
+  document.getElementById('deck-viewer').style.display = 'flex';
+}
 
 // ===== CARD DICTIONARY =====
 function toggleDictionary() {

@@ -3008,27 +3008,20 @@ function toggleDictionary() {
 function openDictionary() {
   if (!gameState) return;
 
-  const allFactions = Object.keys(FACTION_CONFIG);
-  let totalCards = 0;
-  allFactions.forEach(f => { totalCards += FACTION_CONFIG[f].cards.length; });
+  const myKey = (gameMode === 'ai' || gameState.currentPlayer === 'p1') ? 'p1' : 'p2';
+  const myFaction = gameState[myKey].faction;
+  const oppFaction = gameState[myKey === 'p1' ? 'p2' : 'p1'].faction;
+  const myCards = FACTION_CONFIG[myFaction].cards;
+  const oppCards = FACTION_CONFIG[oppFaction].cards;
 
   const title = document.getElementById('dict-title');
   const subtitle = document.getElementById('dict-subtitle');
   title.textContent = '카드 도감';
-  subtitle.textContent = `전체 ${totalCards}종`;
+  subtitle.textContent = `전체 ${myCards.length + oppCards.length}종`;
 
   let html = '';
-
-  // 현재 게임 중인 진영을 먼저 표시
-  const myKey = (gameMode === 'ai' || gameState.currentPlayer === 'p1') ? 'p1' : 'p2';
-  const myFaction = gameState[myKey].faction;
-  const oppFaction = gameState[myKey === 'p1' ? 'p2' : 'p1'].faction;
-  const orderedFactions = [myFaction, oppFaction, ...allFactions.filter(f => f !== myFaction && f !== oppFaction)];
-
-  orderedFactions.forEach(f => {
-    const cfg = FACTION_CONFIG[f];
-    html += renderDictFaction(cfg.name, cfg.cards, cfg.cardClass);
-  });
+  html += renderDictFaction(getFactionName(myFaction), myCards, getFactionClass(myFaction));
+  html += renderDictFaction(getFactionName(oppFaction), oppCards, getFactionClass(oppFaction));
 
   document.getElementById('dict-content').innerHTML = html;
   document.getElementById('card-dictionary').style.display = 'flex';

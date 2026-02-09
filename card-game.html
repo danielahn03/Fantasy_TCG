@@ -2332,6 +2332,7 @@ function drawCard(player) {
 function startTurn(player) {
   const p = gameState[player];
   gameState.currentPlayer = player;
+  isAttacking = false;
 
   // Increase mana
   if (p.maxMana < 10) p.maxMana++;

@@ -3038,7 +3038,7 @@ function aiTurn() {
           return best || m;
         }, null) || opp.field[0];
 
-        const ci = p.hand.indexOf(card);
+        const ci = p.hand.findIndex(c => c.uid === card.uid);
         if (ci >= 0) {
           summonMinion('p2', card, ci);
           if (target) {
@@ -3052,11 +3052,11 @@ function aiTurn() {
           }
         }
       } else {
-        const ci = p.hand.indexOf(card);
+        const ci = p.hand.findIndex(c => c.uid === card.uid);
         if (ci >= 0) summonMinion('p2', card, ci);
       }
     } else if (card.type === 'spell') {
-      const ci = p.hand.indexOf(card);
+      const ci = p.hand.findIndex(c => c.uid === card.uid);
       if (ci < 0) continue;
 
       if (card.effect === 'aoe_damage') {
@@ -3093,7 +3093,10 @@ function aiTurn() {
           castSpell('p2', card, ci, 'hero', 'hero');
         }
       } else if (card.effect === 'coin') {
-        if (p.mana < p.maxMana) {
+        // 코인을 쓰면 플레이할 수 있는 카드가 있을 때만 사용
+        const couldPlay = p.hand.some(c => c.id !== 'coin' && c.cost === p.mana + 1 &&
+          (c.type !== 'minion' || p.field.length < 7));
+        if (couldPlay) {
           castSpell('p2', card, ci, null, null);
         }
       }

@@ -811,6 +811,87 @@ body {
   100% { opacity: 0; transform: translateY(-40px) scale(1.5); }
 }
 
+/* Card draw animation */
+.card-draw-anim {
+  animation: cardDraw 0.4s ease-out;
+}
+
+@keyframes cardDraw {
+  0% { opacity: 0; transform: translateY(-60px) scale(0.5) rotate(-10deg); }
+  60% { opacity: 1; transform: translateY(5px) scale(1.05) rotate(2deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+/* Summon animation */
+.summon-anim {
+  animation: summonPop 0.4s ease-out;
+}
+
+@keyframes summonPop {
+  0% { opacity: 0; transform: scale(0) translateY(20px); }
+  60% { opacity: 1; transform: scale(1.15) translateY(-5px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Attack animation */
+.attack-anim {
+  animation: attackLunge 0.3s ease-in-out;
+}
+
+@keyframes attackLunge {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-30px) scale(1.1); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.attack-anim-down {
+  animation: attackLungeDown 0.3s ease-in-out;
+}
+
+@keyframes attackLungeDown {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(30px) scale(1.1); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* Battlecry flash */
+.battlecry-flash {
+  animation: battlecryGlow 0.5s ease-out;
+}
+
+@keyframes battlecryGlow {
+  0% { box-shadow: 0 0 0px rgba(255, 215, 0, 0); }
+  30% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.8), 0 0 50px rgba(255, 215, 0, 0.4); }
+  100% { box-shadow: none; }
+}
+
+/* Screen flash for battlecry */
+.screen-flash {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 998;
+  animation: screenFlash 0.3s ease-out forwards;
+}
+
+@keyframes screenFlash {
+  0% { background: rgba(255, 215, 0, 0.15); }
+  100% { background: rgba(255, 215, 0, 0); }
+}
+
+/* Hero hit shake */
+.hero-hit {
+  animation: heroShake 0.3s ease-in-out;
+}
+
+@keyframes heroShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
 /* Card tooltip */
 .card-tooltip {
   display: none;
@@ -2011,6 +2092,8 @@ function getHeroClass(f) { return FACTION_CONFIG[f].heroClass; }
 function getHeroEmoji(f) { return FACTION_CONFIG[f].emoji; }
 function getHeroPowerName(f) { return FACTION_CONFIG[f].powerName; }
 
+let lastDrawnUid = null;
+
 function drawCard(player) {
   const p = gameState[player];
   if (p.deck.length === 0) {
@@ -2026,7 +2109,9 @@ function drawCard(player) {
     addLog(`${burned.name} 카드가 손이 가득 차서 불탔습니다!`);
     return;
   }
-  p.hand.push(p.deck.pop());
+  const drawn = p.deck.pop();
+  lastDrawnUid = drawn.uid;
+  p.hand.push(drawn);
 }
 
 function startTurn(player) {
@@ -2150,6 +2235,7 @@ function summonMinion(player, card, cardIndex) {
   // Execute battlecry
   if (card.battlecry && !card.battlecry_target) {
     card.battlecry(gameState, player);
+    triggerBattlecryFlash();
   }
 
   checkGameOver();
@@ -2167,6 +2253,7 @@ function executeBattlecry(targetMinion) {
   summonMinion(player, card, cardIndex);
 
   // Then deal battlecry damage
+  triggerBattlecryFlash();
   if (card.battlecry_damage) {
     targetMinion.currentHealth -= card.battlecry_damage;
     addLog(`${card.name}의 전투 함성! ${targetMinion.name}에게 ${card.battlecry_damage} 데미지!`);
@@ -2290,9 +2377,22 @@ function attackTarget(target, targetPlayer) {
     return;
   }
 
+  // 공격 애니메이션 트리거
+  const attackerUid = selectedAttacker.uid;
+  const attackerEl = document.querySelector(`[data-uid="${attackerUid}"]`);
+  const isPlayerTop = player === 'p2';
+  if (attackerEl) {
+    attackerEl.classList.add(isPlayerTop ? 'attack-anim-down' : 'attack-anim');
+  }
+
   if (target === 'hero') {
     // Attack hero
     playSound('attack');
+    // 영웅 피격 흔들림
+    const heroEl = document.getElementById(opp === 'p1' ? 'my-hero' : 'opponent-hero');
+    if (heroEl) heroEl.classList.add('hero-hit');
+    setTimeout(() => { if (heroEl) heroEl.classList.remove('hero-hit'); }, 300);
+
     gameState[opp].hp -= selectedAttacker.currentAttack;
     addLog(`${selectedAttacker.name}이(가) 적 영웅을 공격! ${selectedAttacker.currentAttack} 데미지!`);
     showHeroFloatingText(opp, `-${selectedAttacker.currentAttack}`, 'damage');
@@ -2854,7 +2954,9 @@ function renderHand(elementId, p, playerKey, isMine) {
     const factionClass = card.id === 'coin' ? 'coin-card' : getFactionClass(p.faction);
     const playable = isCurrentPlayer && card.cost <= p.mana && (card.type !== 'minion' || p.field.length < 7);
 
-    el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''}`;
+    const drawAnim = (card.uid === lastDrawnUid) ? 'card-draw-anim' : '';
+    if (card.uid === lastDrawnUid) lastDrawnUid = null;
+    el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''} ${drawAnim}`;
 
     el.innerHTML = `
       <div class="card-mana">${card.cost}</div>
@@ -2891,6 +2993,7 @@ function renderField(elementId, p, playerKey, isMine) {
 
   p.field.forEach(m => {
     const el = document.createElement('div');
+    el.setAttribute('data-uid', m.uid);
     const factionClass = getFactionClass(p.faction);
 
     let canAtk = isMine && isMyTurn && m.attacksThisTurn === 0 &&
@@ -2902,7 +3005,8 @@ function renderField(elementId, p, playerKey, isMine) {
     const isSelected = selectedAttacker && selectedAttacker.uid === m.uid;
     const isTargetable = !isMine && (selectedAttacker || targetingSpell || battlecryTarget);
 
-    el.className = `field-minion ${factionClass} ${canAtk ? 'can-attack' : ''} ${m.keywords.includes('taunt') ? 'taunt' : ''} ${isSelected ? 'selected' : ''} ${isTargetable ? 'targetable' : ''}`;
+    const summonAnim = m.summonedThisTurn ? 'summon-anim' : '';
+    el.className = `field-minion ${factionClass} ${canAtk ? 'can-attack' : ''} ${m.keywords.includes('taunt') ? 'taunt' : ''} ${isSelected ? 'selected' : ''} ${isTargetable ? 'targetable' : ''} ${summonAnim}`;
 
     const keywordText = m.keywords.filter(k => k !== '').map(k => {
       switch(k) {
@@ -3000,6 +3104,13 @@ function showHeroFloatingText(player, text, type) {
   document.body.appendChild(ft);
 
   setTimeout(() => ft.remove(), 1000);
+}
+
+function triggerBattlecryFlash() {
+  const flash = document.createElement('div');
+  flash.className = 'screen-flash';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 300);
 }
 
 // ===== TOOLTIP =====

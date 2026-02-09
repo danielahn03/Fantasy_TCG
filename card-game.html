@@ -300,11 +300,32 @@ body {
   margin-left: auto;
   transition: all 0.2s;
   white-space: nowrap;
+  position: relative;
 }
 
 .hero-power-btn:hover:not(.used):not(.disabled) {
   background: rgba(255,255,255,0.15);
   border-color: #3498db;
+}
+
+.hero-power-tooltip {
+  display: none;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.92);
+  border: 1px solid #888;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.hero-power-btn:hover .hero-power-tooltip {
+  display: block;
 }
 
 .hero-power-btn.used {
@@ -1693,11 +1714,11 @@ const DWARF_CARDS = [
 ];
 
 const FACTION_CONFIG = {
-  human: { name:'인간', cardClass:'human-card', heroClass:'human-hero', emoji:'⚔️', powerName:'성스러운 회복', cards: HUMAN_CARDS },
-  demon: { name:'악마', cardClass:'demon-card', heroClass:'demon-hero', emoji:'👿', powerName:'구울 소환', cards: DEMON_CARDS },
-  elf:   { name:'엘프', cardClass:'elf-card', heroClass:'elf-hero', emoji:'🧝', powerName:'요정의 화살', cards: ELF_CARDS },
-  druid: { name:'드루이드', cardClass:'druid-card', heroClass:'druid-hero', emoji:'🌿', powerName:'야생의 부름', cards: DRUID_CARDS },
-  dwarf: { name:'드워프', cardClass:'dwarf-card', heroClass:'dwarf-hero', emoji:'⛏️', powerName:'장갑 강화', cards: DWARF_CARDS },
+  human: { name:'인간', cardClass:'human-card', heroClass:'human-hero', emoji:'⚔️', powerName:'성스러운 회복', powerDesc:'영웅 체력 2 회복', cards: HUMAN_CARDS },
+  demon: { name:'악마', cardClass:'demon-card', heroClass:'demon-hero', emoji:'👿', powerName:'구울 소환', powerDesc:'1/1 구울 소환', cards: DEMON_CARDS },
+  elf:   { name:'엘프', cardClass:'elf-card', heroClass:'elf-hero', emoji:'🧝', powerName:'요정의 화살', powerDesc:'적 영웅에게 1 데미지', cards: ELF_CARDS },
+  druid: { name:'드루이드', cardClass:'druid-card', heroClass:'druid-hero', emoji:'🌿', powerName:'야생의 부름', powerDesc:'1/1 다람쥐 소환 (돌진)', cards: DRUID_CARDS },
+  dwarf: { name:'드워프', cardClass:'dwarf-card', heroClass:'dwarf-hero', emoji:'⛏️', powerName:'장갑 강화', powerDesc:'아군 미니언 +1 체력 (없으면 영웅 체력 2 회복)', cards: DWARF_CARDS },
 };
 
 const COIN_CARD = { id:'coin', name:'동전', type:'spell', cost:0, emoji:'🪙', desc:'이번 턴 마나 1 획득', target:'none', effect:'coin', value:1 };
@@ -2569,7 +2590,7 @@ function render() {
   const isMyTurn = (gameMode === 'ai' && player === 'p1' && myKey === 'p1') ||
                    (gameMode === 'pvp' && myKey === player);
 
-  myPowerBtn.textContent = `${getHeroPowerName(my.faction)} (2)`;
+  myPowerBtn.innerHTML = `${getHeroPowerName(my.faction)} (2)<span class="hero-power-tooltip" style="bottom:120%;">${FACTION_CONFIG[my.faction].powerDesc}</span>`;
   if (my.heroPowerUsed) {
     myPowerBtn.className = 'hero-power-btn used';
   } else if (my.mana < 2 || !isMyTurn) {
@@ -2578,7 +2599,7 @@ function render() {
     myPowerBtn.className = 'hero-power-btn';
   }
 
-  oppPowerBtn.textContent = `${getHeroPowerName(opp.faction)} (2)`;
+  oppPowerBtn.innerHTML = `${getHeroPowerName(opp.faction)} (2)<span class="hero-power-tooltip" style="top:120%;">${FACTION_CONFIG[opp.faction].powerDesc}</span>`;
   oppPowerBtn.className = 'hero-power-btn disabled';
 
   // End turn button

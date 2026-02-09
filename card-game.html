@@ -2121,6 +2121,7 @@ function getHeroPowerName(f) { return FACTION_CONFIG[f].powerName; }
 
 let lastDrawnUid = null;
 let lastSummonedUid = null;
+let isAttacking = false;
 
 function drawCard(player) {
   const p = gameState[player];
@@ -2383,6 +2384,7 @@ function selectAttacker(minion) {
 
 function attackTarget(target, targetPlayer) {
   if (!selectedAttacker || gameState.gameOver) return;
+  if (isAttacking) return;
 
   const player = gameState.currentPlayer;
   const opp = player === 'p1' ? 'p2' : 'p1';
@@ -2406,79 +2408,77 @@ function attackTarget(target, targetPlayer) {
     return;
   }
 
-  // 공격 애니메이션 트리거
+  // 실제 공격 처리 함수
+  function processAttack() {
+    if (target === 'hero') {
+      playSound('attack');
+      const heroEl = document.getElementById(opp === 'p1' ? 'my-hero' : 'opponent-hero');
+      if (heroEl) heroEl.classList.add('hero-hit');
+      setTimeout(() => { if (heroEl) heroEl.classList.remove('hero-hit'); }, 300);
+
+      gameState[opp].hp -= selectedAttacker.currentAttack;
+      addLog(`${selectedAttacker.name}이(가) 적 영웅을 공격! ${selectedAttacker.currentAttack} 데미지!`);
+      showHeroFloatingText(opp, `-${selectedAttacker.currentAttack}`, 'damage');
+
+      if (selectedAttacker.keywords.includes('lifesteal')) {
+        const healed = Math.min(selectedAttacker.currentAttack, 30 - gameState[player].hp);
+        gameState[player].hp = Math.min(30, gameState[player].hp + selectedAttacker.currentAttack);
+        addLog(`생명력 흡수! ${healed} 회복!`);
+      }
+
+      selectedAttacker.canAttack = false;
+      selectedAttacker.attacksThisTurn++;
+    } else {
+      const attacker = selectedAttacker;
+      playSound('attack');
+      addLog(`${attacker.name}이(가) ${target.name}을(를) 공격!`);
+
+      target.currentHealth -= attacker.currentAttack;
+      attacker.currentHealth -= target.currentAttack;
+
+      showFloatingText(target.uid, `-${attacker.currentAttack}`, 'damage');
+      showFloatingText(attacker.uid, `-${target.currentAttack}`, 'damage');
+
+      if (attacker.keywords.includes('poison') && target.currentHealth > 0) {
+        target.currentHealth = 0;
+        addLog(`${target.name}이(가) 독에 의해 즉사!`);
+      }
+      if (target.keywords.includes('poison') && attacker.currentHealth > 0) {
+        attacker.currentHealth = 0;
+        addLog(`${attacker.name}이(가) 독에 의해 즉사!`);
+      }
+
+      if (attacker.keywords.includes('lifesteal')) {
+        const healed = Math.min(attacker.currentAttack, 30 - gameState[player].hp);
+        gameState[player].hp = Math.min(30, gameState[player].hp + attacker.currentAttack);
+        if (healed > 0) addLog(`생명력 흡수! ${healed} 회복!`);
+      }
+
+      const deadCount = gameState[player].field.filter(m => m.currentHealth <= 0).length +
+                        gameState[opp].field.filter(m => m.currentHealth <= 0).length;
+      if (deadCount > 0) setTimeout(() => playSound('death'), 100);
+      gameState[player].field = gameState[player].field.filter(m => m.currentHealth > 0);
+      gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
+
+      attacker.canAttack = false;
+      attacker.attacksThisTurn++;
+    }
+
+    isAttacking = false;
+    clearSelection();
+    checkGameOver();
+    render();
+  }
+
+  // 애니메이션 후 공격 처리
+  isAttacking = true;
   const attackerUid = selectedAttacker.uid;
   const attackerEl = document.querySelector(`[data-uid="${attackerUid}"]`);
   const isPlayerTop = player === 'p2';
   if (attackerEl) {
     attackerEl.classList.add(isPlayerTop ? 'attack-anim-down' : 'attack-anim');
   }
-
-  if (target === 'hero') {
-    // Attack hero
-    playSound('attack');
-    // 영웅 피격 흔들림
-    const heroEl = document.getElementById(opp === 'p1' ? 'my-hero' : 'opponent-hero');
-    if (heroEl) heroEl.classList.add('hero-hit');
-    setTimeout(() => { if (heroEl) heroEl.classList.remove('hero-hit'); }, 300);
-
-    gameState[opp].hp -= selectedAttacker.currentAttack;
-    addLog(`${selectedAttacker.name}이(가) 적 영웅을 공격! ${selectedAttacker.currentAttack} 데미지!`);
-    showHeroFloatingText(opp, `-${selectedAttacker.currentAttack}`, 'damage');
-
-    // Lifesteal
-    if (selectedAttacker.keywords.includes('lifesteal')) {
-      const healed = Math.min(selectedAttacker.currentAttack, 30 - gameState[player].hp);
-      gameState[player].hp = Math.min(30, gameState[player].hp + selectedAttacker.currentAttack);
-      addLog(`생명력 흡수! ${healed} 회복!`);
-    }
-
-    selectedAttacker.canAttack = false;
-    selectedAttacker.attacksThisTurn++;
-  } else {
-    // Attack minion
-    const attacker = selectedAttacker;
-    playSound('attack');
-    addLog(`${attacker.name}이(가) ${target.name}을(를) 공격!`);
-
-    // Deal damage
-    target.currentHealth -= attacker.currentAttack;
-    attacker.currentHealth -= target.currentAttack;
-
-    showFloatingText(target.uid, `-${attacker.currentAttack}`, 'damage');
-    showFloatingText(attacker.uid, `-${target.currentAttack}`, 'damage');
-
-    // Poison
-    if (attacker.keywords.includes('poison') && target.currentHealth > 0) {
-      target.currentHealth = 0;
-      addLog(`${target.name}이(가) 독에 의해 즉사!`);
-    }
-    if (target.keywords.includes('poison') && attacker.currentHealth > 0) {
-      attacker.currentHealth = 0;
-      addLog(`${attacker.name}이(가) 독에 의해 즉사!`);
-    }
-
-    // Lifesteal
-    if (attacker.keywords.includes('lifesteal')) {
-      const healed = Math.min(attacker.currentAttack, 30 - gameState[player].hp);
-      gameState[player].hp = Math.min(30, gameState[player].hp + attacker.currentAttack);
-      if (healed > 0) addLog(`생명력 흡수! ${healed} 회복!`);
-    }
-
-    // Remove dead minions
-    const deadCount = gameState[player].field.filter(m => m.currentHealth <= 0).length +
-                      gameState[opp].field.filter(m => m.currentHealth <= 0).length;
-    if (deadCount > 0) setTimeout(() => playSound('death'), 100);
-    gameState[player].field = gameState[player].field.filter(m => m.currentHealth > 0);
-    gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
-
-    attacker.canAttack = false;
-    attacker.attacksThisTurn++;
-  }
-
-  clearSelection();
-  checkGameOver();
-  render();
+  setTimeout(processAttack, 250);
 }
 
 function targetHero(side) {
@@ -2796,67 +2796,65 @@ function aiAttack() {
     return true;
   });
 
-  const hasTaunt = opp.field.some(m => m.keywords.includes('taunt'));
+  let i = 0;
+  function nextAttack() {
+    if (i >= attackers.length || gameState.gameOver) {
+      selectedAttacker = null;
+      setTimeout(() => { if (!gameState.gameOver) endTurn(); }, 300);
+      return;
+    }
 
-  for (const attacker of attackers) {
-    if (gameState.gameOver) break;
+    const attacker = attackers[i];
+    // 이미 죽었으면 스킵
+    if (attacker.currentHealth <= 0) { i++; nextAttack(); return; }
 
+    i++;
     selectedAttacker = attacker;
+
+    const hasTaunt = opp.field.some(m => m.keywords.includes('taunt'));
+    let target = null;
 
     if (hasTaunt) {
       const tauntMinions = opp.field.filter(m => m.keywords.includes('taunt'));
       if (tauntMinions.length > 0) {
-        // Attack taunt minion with best trade
-        const target = tauntMinions.sort((a, b) => {
-          const aTradeValue = (a.currentHealth <= attacker.currentAttack ? a.currentAttack : 0);
-          const bTradeValue = (b.currentHealth <= attacker.currentAttack ? b.currentAttack : 0);
-          return bTradeValue - aTradeValue;
+        target = tauntMinions.sort((a, b) => {
+          const aTV = (a.currentHealth <= attacker.currentAttack ? a.currentAttack : 0);
+          const bTV = (b.currentHealth <= attacker.currentAttack ? b.currentAttack : 0);
+          return bTV - aTV;
         })[0];
-        attackTarget(target, 'p1');
-        continue;
       }
     }
 
-    // Check for lethal
-    if (opp.hp <= attacker.currentAttack && !(attacker.summonedThisTurn && attacker.keywords.includes('rush'))) {
-      attackTarget('hero', 'p1');
-      continue;
-    }
-
-    // Look for favorable trades
-    const killable = opp.field.filter(m => m.currentHealth <= attacker.currentAttack)
-      .sort((a, b) => b.currentAttack - a.currentAttack);
-
-    if (killable.length > 0 && killable[0].currentAttack < attacker.currentHealth) {
-      attackTarget(killable[0], 'p1');
-      continue;
-    }
-
-    // If rush minion, must attack minion
-    if (attacker.summonedThisTurn && attacker.keywords.includes('rush')) {
-      if (opp.field.length > 0) {
-        const target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
-        attackTarget(target, 'p1');
+    if (!target) {
+      if (opp.hp <= attacker.currentAttack && !(attacker.summonedThisTurn && attacker.keywords.includes('rush'))) {
+        target = 'hero';
+      } else {
+        const killable = opp.field.filter(m => m.currentHealth <= attacker.currentAttack)
+          .sort((a, b) => b.currentAttack - a.currentAttack);
+        if (killable.length > 0 && killable[0].currentAttack < attacker.currentHealth) {
+          target = killable[0];
+        } else if (attacker.summonedThisTurn && attacker.keywords.includes('rush')) {
+          if (opp.field.length > 0) {
+            target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+          }
+        } else if (opp.field.length === 0 || attacker.currentAttack >= 3) {
+          target = 'hero';
+        } else if (opp.field.length > 0) {
+          target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+        }
       }
-      continue;
     }
 
-    // Go face
-    if (opp.field.length === 0 || attacker.currentAttack >= 3) {
-      attackTarget('hero', 'p1');
-    } else if (opp.field.length > 0) {
-      const target = opp.field.sort((a, b) => b.currentAttack - a.currentAttack)[0];
+    if (target) {
       attackTarget(target, 'p1');
+      // attackTarget이 250ms 후 render하므로 그 뒤에 다음 공격
+      setTimeout(nextAttack, 350);
+    } else {
+      nextAttack();
     }
   }
 
-  selectedAttacker = null;
-
-  setTimeout(() => {
-    if (!gameState.gameOver) {
-      endTurn();
-    }
-  }, 300);
+  nextAttack();
 }
 
 // ===== RENDERING =====

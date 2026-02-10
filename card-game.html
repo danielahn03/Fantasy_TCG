@@ -1453,6 +1453,68 @@ body {
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(22px);
 }
+
+/* Mulligan */
+#mulligan-screen {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a15 100%);
+  z-index: 1500;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#mulligan-screen h2 { color: #ffd700; margin-bottom: 5px; }
+.mulligan-cards {
+  display: flex;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.mulligan-card {
+  width: 100px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2a2a4a, #1a1a3a);
+  border: 2px solid #555;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+.mulligan-card:hover { border-color: #aaa; transform: translateY(-3px); }
+.mulligan-card.selected {
+  border-color: #555;
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+.mulligan-card .m-cost {
+  background: #3498db;
+  color: white;
+  border-radius: 50%;
+  width: 24px; height: 24px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+.mulligan-card .m-emoji { font-size: 32px; margin: 5px 0; }
+.mulligan-card .m-name { font-size: 11px; color: #ddd; }
+.mulligan-card .m-stats { font-size: 12px; color: #aaa; margin-top: 4px; }
+#mulligan-confirm {
+  padding: 10px 40px;
+  font-size: 16px;
+  background: linear-gradient(135deg, #e67e22, #d35400);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  margin-top: 10px;
+}
+#mulligan-confirm:hover { filter: brightness(1.2); }
 </style>
 </head>
 <body>
@@ -1518,27 +1580,27 @@ body {
     <div class="faction-card human" onclick="selectFaction('human')">
       <div class="faction-icon">⚔️</div>
       <h3>인간</h3>
-      <p>신성한 마법과 기사단의 힘<br><br>🛡️ 체력 2 회복</p>
+      <p>신성한 마법과 기사단의 힘<br><br>✨ 영웅 체력 3 회복</p>
     </div>
     <div class="faction-card demon" onclick="selectFaction('demon')">
       <div class="faction-icon">👿</div>
       <h3>악마</h3>
-      <p>지옥의 군단과 어둠의 힘<br><br>💀 1/1 구울 소환</p>
+      <p>지옥의 군단과 어둠의 힘<br><br>💀 자해 2뎀, 카드 드로우</p>
     </div>
     <div class="faction-card elf" onclick="selectFaction('elf')">
       <div class="faction-icon">🧝</div>
       <h3>엘프</h3>
-      <p>숲의 정밀한 궁술과 마법<br><br>🏹 적에게 1 데미지</p>
+      <p>숲의 정밀한 궁술과 마법<br><br>🏹 적 미니언 1뎀 (없으면 영웅)</p>
     </div>
     <div class="faction-card druid" onclick="selectFaction('druid')">
       <div class="faction-icon">🌿</div>
       <h3>드루이드</h3>
-      <p>자연과 야수의 원시적 힘<br><br>🐿️ 1/1 다람쥐 소환 (돌진)</p>
+      <p>자연과 야수의 원시적 힘<br><br>🐿️ 1/1 다람쥐 소환</p>
     </div>
     <div class="faction-card dwarf" onclick="selectFaction('dwarf')">
       <div class="faction-icon">⛏️</div>
       <h3>드워프</h3>
-      <p>광산의 기술과 강철의 힘<br><br>🛡️ 아군 +1 체력 강화</p>
+      <p>광산의 기술과 강철의 힘<br><br>🛡️ 아군 전체 +1 체력</p>
     </div>
   </div>
   <button class="back-btn" onclick="playSound('click'); factionSelectBack()">뒤로</button>
@@ -1677,6 +1739,14 @@ body {
       <div class="vs-name" id="vs-name-right"></div>
     </div>
   </div>
+</div>
+
+<!-- Mulligan -->
+<div id="mulligan-screen">
+  <h2 id="mulligan-title">교환할 카드를 선택하세요</h2>
+  <p id="mulligan-subtitle" style="color:#aaa; margin-bottom:20px;">버릴 카드를 클릭하면 새 카드로 교체됩니다</p>
+  <div id="mulligan-cards" class="mulligan-cards"></div>
+  <button id="mulligan-confirm" onclick="confirmMulligan()">확인</button>
 </div>
 
 <!-- Game Over -->
@@ -2160,15 +2230,15 @@ const HUMAN_CARDS = [
   { id:'h2', name:'민병대', type:'minion', cost:1, attack:2, health:1, emoji:'🧑‍🌾', desc:'', keywords:[] },
   { id:'h3', name:'성기사', type:'minion', cost:2, attack:2, health:3, emoji:'🛡️', desc:'도발', keywords:['taunt'] },
   { id:'h4', name:'궁수', type:'minion', cost:2, attack:3, health:1, emoji:'🏹', desc:'돌진', keywords:['rush'] },
-  { id:'h5', name:'치유사', type:'minion', cost:2, attack:1, health:3, emoji:'💚', desc:'전투 함성: 아군 영웅 체력 3 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 3); showHeroFloatingText(player, '+3', 'heal'); addLog(`치유사가 영웅 체력을 3 회복!`); } },
+  { id:'h5', name:'치유사', type:'minion', cost:2, attack:1, health:4, emoji:'💚', desc:'전투 함성: 아군 영웅 체력 3 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 3); showHeroFloatingText(player, '+3', 'heal'); addLog(`치유사가 영웅 체력을 3 회복!`); } },
   { id:'h6', name:'기사', type:'minion', cost:3, attack:3, health:3, emoji:'⚔️', desc:'', keywords:[] },
   { id:'h7', name:'성전사', type:'minion', cost:3, attack:2, health:4, emoji:'✝️', desc:'도발', keywords:['taunt'] },
   { id:'h8', name:'암살자', type:'minion', cost:3, attack:4, health:2, emoji:'🗡️', desc:'돌진', keywords:['rush'] },
   { id:'h9', name:'대마법사', type:'minion', cost:4, attack:3, health:5, emoji:'🧙', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
   { id:'h10', name:'성기사 대장', type:'minion', cost:4, attack:4, health:4, emoji:'🏰', desc:'도발', keywords:['taunt'] },
-  { id:'h11', name:'빛의 수호자', type:'minion', cost:5, attack:4, health:6, emoji:'👼', desc:'생명력 흡수', keywords:['lifesteal'] },
+  { id:'h11', name:'빛의 수호자', type:'minion', cost:5, attack:3, health:7, emoji:'👼', desc:'생명력 흡수', keywords:['lifesteal'] },
   { id:'h12', name:'용기사', type:'minion', cost:6, attack:5, health:5, emoji:'🐉', desc:'돌진', keywords:['rush'] },
-  { id:'h13', name:'대천사', type:'minion', cost:7, attack:6, health:7, emoji:'😇', desc:'전투 함성: 아군 영웅 체력 5 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 5); showHeroFloatingText(player, '+5', 'heal'); addLog(`대천사가 영웅 체력을 5 회복!`); } },
+  { id:'h13', name:'대천사', type:'minion', cost:7, attack:6, health:7, emoji:'😇', desc:'전투 함성: 아군 영웅 체력 4 회복, 아군 미니언 전체 체력 2 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 4); showHeroFloatingText(player, '+4', 'heal'); gs[player].field.forEach(m => { const heal = Math.min(2, m.maxHealth - m.currentHealth); m.currentHealth = Math.min(m.maxHealth, m.currentHealth + 2); if (heal > 0) showFloatingText(m.uid, `+${heal}`, 'heal'); }); addLog(`대천사가 영웅 체력 4 회복, 아군 미니언 전체 체력 2 회복!`); } },
   // Spells
   { id:'h14', name:'신성한 빛', type:'spell', cost:1, emoji:'✨', desc:'아군 캐릭터 하나의 체력 4 회복', target:'friendly_any', effect:'heal', value:4 },
   { id:'h15', name:'천벌', type:'spell', cost:3, emoji:'⚡', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
@@ -2178,21 +2248,21 @@ const HUMAN_CARDS = [
 
 const DEMON_CARDS = [
   // Minions
-  { id:'d1', name:'임프', type:'minion', cost:1, attack:2, health:1, emoji:'👹', desc:'', keywords:[] },
+  { id:'d1', name:'임프', type:'minion', cost:1, attack:3, health:1, emoji:'👹', desc:'', keywords:[] },
   { id:'d2', name:'박쥐', type:'minion', cost:1, attack:1, health:2, emoji:'🦇', desc:'', keywords:[] },
   { id:'d3', name:'지옥 감시자', type:'minion', cost:2, attack:2, health:3, emoji:'👁️', desc:'도발', keywords:['taunt'] },
   { id:'d4', name:'그림자 자객', type:'minion', cost:2, attack:3, health:1, emoji:'🌑', desc:'돌진', keywords:['rush'] },
-  { id:'d5', name:'흡혈귀', type:'minion', cost:2, attack:1, health:3, emoji:'🧛', desc:'전투 함성: 적 영웅에게 2 데미지', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 2; gs.stats[player].totalDamage += 2; showHeroFloatingText(opp, '-2', 'damage'); addLog(`흡혈귀가 적 영웅에게 2 데미지!`); } },
+  { id:'d5', name:'흡혈귀', type:'minion', cost:2, attack:1, health:3, emoji:'🧛', desc:'전투 함성: 적 영웅 3뎀, 자해 2뎀', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 3; gs.stats[player].totalDamage += 3; showHeroFloatingText(opp, '-3', 'damage'); gs[player].hp -= 2; showHeroFloatingText(player, '-2', 'damage'); addLog(`흡혈귀가 적 영웅에게 3 데미지! 자해 2 데미지!`); } },
   { id:'d6', name:'서큐버스', type:'minion', cost:3, attack:3, health:3, emoji:'😈', desc:'', keywords:[] },
   { id:'d7', name:'석상 수호자', type:'minion', cost:3, attack:2, health:4, emoji:'🗿', desc:'도발', keywords:['taunt'] },
   { id:'d8', name:'지옥 사냥개', type:'minion', cost:3, attack:4, health:2, emoji:'🐕‍🦺', desc:'돌진', keywords:['rush'] },
   { id:'d9', name:'악마 마법사', type:'minion', cost:4, attack:3, health:5, emoji:'🔮', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
   { id:'d10', name:'지옥 수문장', type:'minion', cost:4, attack:4, health:4, emoji:'🚪', desc:'도발', keywords:['taunt'] },
-  { id:'d11', name:'영혼 흡수자', type:'minion', cost:5, attack:4, health:6, emoji:'👻', desc:'생명력 흡수', keywords:['lifesteal'] },
+  { id:'d11', name:'영혼 흡수자', type:'minion', cost:5, attack:5, health:5, emoji:'👻', desc:'생명력 흡수', keywords:['lifesteal'] },
   { id:'d12', name:'지옥불 정령', type:'minion', cost:6, attack:5, health:5, emoji:'🔥', desc:'돌진', keywords:['rush'] },
-  { id:'d13', name:'악마 군주', type:'minion', cost:7, attack:6, health:7, emoji:'👿', desc:'전투 함성: 적 영웅에게 3 데미지', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 3; gs.stats[player].totalDamage += 3; showHeroFloatingText(opp, '-3', 'damage'); addLog(`악마 군주가 적 영웅에게 3 데미지!`); } },
+  { id:'d13', name:'악마 군주', type:'minion', cost:7, attack:6, health:7, emoji:'👿', desc:'전투 함성: 적 영웅 4뎀, 자해 2뎀', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 4; gs.stats[player].totalDamage += 4; showHeroFloatingText(opp, '-4', 'damage'); gs[player].hp -= 2; showHeroFloatingText(player, '-2', 'damage'); addLog(`악마 군주가 적 영웅에게 4 데미지! 자해 2 데미지!`); } },
   // Spells
-  { id:'d14', name:'어둠의 화살', type:'spell', cost:1, emoji:'🏴', desc:'적 캐릭터 하나에게 3 데미지', target:'enemy_any', effect:'damage', value:3 },
+  { id:'d14', name:'어둠의 화살', type:'spell', cost:1, emoji:'🏴', desc:'적 캐릭터 하나에게 2 데미지', target:'enemy_any', effect:'damage', value:2 },
   { id:'d15', name:'영혼 불꽃', type:'spell', cost:3, emoji:'💀', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
   { id:'d16', name:'지옥의 불길', type:'spell', cost:5, emoji:'🌋', desc:'적 미니언 전체에게 3 데미지', target:'none', effect:'aoe_damage', value:3 },
   { id:'d17', name:'어둠 강화', type:'spell', cost:2, emoji:'💪', desc:'아군 미니언 하나에게 +2/+2', target:'friendly_minion', effect:'buff', value:2 },
@@ -2201,20 +2271,20 @@ const DEMON_CARDS = [
 const ELF_CARDS = [
   // Minions
   { id:'e1', name:'요정 정찰병', type:'minion', cost:1, attack:1, health:2, emoji:'🧚', desc:'', keywords:[] },
-  { id:'e2', name:'숲의 궁수', type:'minion', cost:1, attack:2, health:1, emoji:'🏹', desc:'', keywords:[] },
+  { id:'e2', name:'숲의 궁수', type:'minion', cost:1, attack:2, health:1, emoji:'🏹', desc:'돌진', keywords:['rush'] },
   { id:'e3', name:'나무 방패병', type:'minion', cost:2, attack:2, health:3, emoji:'🌳', desc:'도발', keywords:['taunt'] },
   { id:'e4', name:'그림자 사냥꾼', type:'minion', cost:2, attack:3, health:1, emoji:'🌙', desc:'돌진', keywords:['rush'] },
   { id:'e5', name:'달빛 치유사', type:'minion', cost:2, attack:1, health:3, emoji:'🌛', desc:'전투 함성: 아군 영웅 체력 3 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 3); showHeroFloatingText(player, '+3', 'heal'); addLog(`달빛 치유사가 영웅 체력을 3 회복!`); } },
   { id:'e6', name:'엘프 검사', type:'minion', cost:3, attack:3, health:3, emoji:'⚔️', desc:'', keywords:[] },
   { id:'e7', name:'고대 수호자', type:'minion', cost:3, attack:2, health:4, emoji:'🌲', desc:'도발', keywords:['taunt'] },
-  { id:'e8', name:'바람 추적자', type:'minion', cost:3, attack:4, health:2, emoji:'💨', desc:'돌진', keywords:['rush'] },
+  { id:'e8', name:'바람 추적자', type:'minion', cost:3, attack:3, health:3, emoji:'💨', desc:'돌진', keywords:['rush'] },
   { id:'e9', name:'별빛 마법사', type:'minion', cost:4, attack:3, health:5, emoji:'⭐', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
   { id:'e10', name:'숲의 파수꾼', type:'minion', cost:4, attack:4, health:4, emoji:'🦌', desc:'도발', keywords:['taunt'] },
   { id:'e11', name:'생명의 정령', type:'minion', cost:5, attack:4, health:6, emoji:'🍃', desc:'생명력 흡수', keywords:['lifesteal'] },
-  { id:'e12', name:'은빛 용사', type:'minion', cost:6, attack:5, health:5, emoji:'🦅', desc:'돌진', keywords:['rush'] },
+  { id:'e12', name:'은빛 용사', type:'minion', cost:6, attack:6, health:4, emoji:'🦅', desc:'돌진', keywords:['rush'] },
   { id:'e13', name:'숲의 여왕', type:'minion', cost:7, attack:6, health:7, emoji:'👑', desc:'전투 함성: 아군 영웅 체력 5 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 5); showHeroFloatingText(player, '+5', 'heal'); addLog(`숲의 여왕이 영웅 체력을 5 회복!`); } },
   // Spells
-  { id:'e14', name:'달빛 화살', type:'spell', cost:1, emoji:'🏹', desc:'적 캐릭터 하나에게 3 데미지', target:'enemy_any', effect:'damage', value:3 },
+  { id:'e14', name:'달빛 화살', type:'spell', cost:1, emoji:'🏹', desc:'적 캐릭터 하나에게 2 데미지', target:'enemy_any', effect:'damage', value:2 },
   { id:'e15', name:'별의 분노', type:'spell', cost:3, emoji:'🌟', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
   { id:'e16', name:'자연의 심판', type:'spell', cost:5, emoji:'🌊', desc:'적 미니언 전체에게 3 데미지', target:'none', effect:'aoe_damage', value:3 },
   { id:'e17', name:'숲의 축복', type:'spell', cost:2, emoji:'🌿', desc:'아군 미니언 하나에게 +2/+2', target:'friendly_minion', effect:'buff', value:2 },
@@ -2227,49 +2297,49 @@ const DRUID_CARDS = [
   { id:'dr3', name:'거북이 수호자', type:'minion', cost:2, attack:2, health:3, emoji:'🐢', desc:'도발', keywords:['taunt'] },
   { id:'dr4', name:'매', type:'minion', cost:2, attack:3, health:1, emoji:'🦅', desc:'돌진', keywords:['rush'] },
   { id:'dr5', name:'치유의 나무', type:'minion', cost:2, attack:1, health:3, emoji:'🌳', desc:'전투 함성: 아군 영웅 체력 3 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 3); showHeroFloatingText(player, '+3', 'heal'); addLog(`치유의 나무가 영웅 체력을 3 회복!`); } },
-  { id:'dr6', name:'늑대', type:'minion', cost:3, attack:3, health:3, emoji:'🐺', desc:'', keywords:[] },
+  { id:'dr6', name:'늑대 대장', type:'minion', cost:3, attack:2, health:3, emoji:'🐺', desc:'전투 함성: 아군 미니언 전체 +1 공격', keywords:[], battlecry: (gs, player) => { gs[player].field.forEach(m => { m.currentAttack += 1; showFloatingText(m.uid, '+1', 'heal'); }); addLog(`늑대 대장의 전투 함성! 아군 미니언 전체 공격력 +1!`); } },
   { id:'dr7', name:'나무 정령', type:'minion', cost:3, attack:2, health:4, emoji:'🌴', desc:'도발', keywords:['taunt'] },
   { id:'dr8', name:'야생 멧돼지', type:'minion', cost:3, attack:4, health:2, emoji:'🐗', desc:'돌진', keywords:['rush'] },
   { id:'dr9', name:'독수리 현자', type:'minion', cost:4, attack:3, health:5, emoji:'🦉', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
   { id:'dr10', name:'곰 수호자', type:'minion', cost:4, attack:4, health:4, emoji:'🐻', desc:'도발', keywords:['taunt'] },
   { id:'dr11', name:'뱀파이어 박쥐', type:'minion', cost:5, attack:4, health:6, emoji:'🦇', desc:'생명력 흡수', keywords:['lifesteal'] },
   { id:'dr12', name:'돌진 코뿔소', type:'minion', cost:6, attack:5, health:5, emoji:'🦏', desc:'돌진', keywords:['rush'] },
-  { id:'dr13', name:'고대 나무정령', type:'minion', cost:7, attack:6, health:7, emoji:'🌍', desc:'전투 함성: 적 영웅에게 3 데미지', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 3; gs.stats[player].totalDamage += 3; showHeroFloatingText(opp, '-3', 'damage'); addLog(`고대 나무정령이 적 영웅에게 3 데미지!`); } },
+  { id:'dr13', name:'고대 나무정령', type:'minion', cost:7, attack:5, health:7, emoji:'🌍', desc:'전투 함성: 1/1 다람쥐 3마리 소환', keywords:[], battlecry: (gs, player) => { for (let i = 0; i < 3 && gs[player].field.length < 7; i++) { const sq = { id:'squirrel_token', name:'다람쥐', type:'minion', cost:0, attack:1, health:1, emoji:'🐿️', desc:'', keywords:[], uid: Date.now()+Math.random()+i, currentHealth:1, maxHealth:1, currentAttack:1, canAttack:false, summonedThisTurn:true, attacksThisTurn:0 }; gs[player].field.push(sq); } playSound('summon'); addLog(`고대 나무정령의 전투 함성! 다람쥐 소환!`); } },
   // Spells
-  { id:'dr14', name:'가시 덩굴', type:'spell', cost:1, emoji:'🌵', desc:'적 캐릭터 하나에게 3 데미지', target:'enemy_any', effect:'damage', value:3 },
+  { id:'dr14', name:'가시 덩굴', type:'spell', cost:1, emoji:'🌵', desc:'적 미니언 하나에게 3 데미지', target:'enemy_minion', effect:'damage', value:3 },
   { id:'dr15', name:'자연의 분노', type:'spell', cost:3, emoji:'🍂', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
   { id:'dr16', name:'폭풍의 눈', type:'spell', cost:5, emoji:'🌪️', desc:'적 미니언 전체에게 3 데미지', target:'none', effect:'aoe_damage', value:3 },
-  { id:'dr17', name:'야생의 힘', type:'spell', cost:2, emoji:'💪', desc:'아군 미니언 하나에게 +2/+2', target:'friendly_minion', effect:'buff', value:2 },
+  { id:'dr17', name:'야생의 힘', type:'spell', cost:2, emoji:'💪', desc:'아군 미니언 하나에게 +3/+1', target:'friendly_minion', effect:'buff_atk', value:3 },
 ];
 
 const DWARF_CARDS = [
   // Minions
-  { id:'dw1', name:'광부 견습생', type:'minion', cost:1, attack:1, health:2, emoji:'⛏️', desc:'', keywords:[] },
+  { id:'dw1', name:'광부 견습생', type:'minion', cost:1, attack:1, health:3, emoji:'⛏️', desc:'', keywords:[] },
   { id:'dw2', name:'화약 기술자', type:'minion', cost:1, attack:2, health:1, emoji:'💣', desc:'', keywords:[] },
   { id:'dw3', name:'철벽 수비병', type:'minion', cost:2, attack:2, health:3, emoji:'🛡️', desc:'도발', keywords:['taunt'] },
   { id:'dw4', name:'증기 돌격병', type:'minion', cost:2, attack:3, health:1, emoji:'💨', desc:'돌진', keywords:['rush'] },
   { id:'dw5', name:'수리공', type:'minion', cost:2, attack:1, health:3, emoji:'🔧', desc:'전투 함성: 아군 영웅 체력 3 회복', keywords:[], battlecry: (gs, player) => { gs[player].hp = Math.min(30, gs[player].hp + 3); showHeroFloatingText(player, '+3', 'heal'); addLog(`수리공이 영웅 체력을 3 회복!`); } },
   { id:'dw6', name:'철퇴 전사', type:'minion', cost:3, attack:3, health:3, emoji:'🔨', desc:'', keywords:[] },
-  { id:'dw7', name:'강철 골렘', type:'minion', cost:3, attack:2, health:4, emoji:'🤖', desc:'도발', keywords:['taunt'] },
+  { id:'dw7', name:'강철 골렘', type:'minion', cost:3, attack:2, health:5, emoji:'🤖', desc:'도발', keywords:['taunt'] },
   { id:'dw8', name:'폭파병', type:'minion', cost:3, attack:4, health:2, emoji:'🧨', desc:'돌진', keywords:['rush'] },
   { id:'dw9', name:'대포 기술자', type:'minion', cost:4, attack:3, health:5, emoji:'💥', desc:'전투 함성: 적 미니언 하나에게 2 데미지', keywords:[], battlecry_target:'enemy_minion', battlecry_damage:2 },
   { id:'dw10', name:'미스릴 수호자', type:'minion', cost:4, attack:4, health:4, emoji:'🏰', desc:'도발', keywords:['taunt'] },
-  { id:'dw11', name:'증기 흡수기', type:'minion', cost:5, attack:4, health:6, emoji:'⚙️', desc:'생명력 흡수', keywords:['lifesteal'] },
-  { id:'dw12', name:'전차', type:'minion', cost:6, attack:5, health:5, emoji:'🚂', desc:'돌진', keywords:['rush'] },
+  { id:'dw11', name:'증기 흡수기', type:'minion', cost:5, attack:3, health:8, emoji:'⚙️', desc:'생명력 흡수', keywords:['lifesteal'] },
+  { id:'dw12', name:'전차', type:'minion', cost:6, attack:4, health:6, emoji:'🚂', desc:'돌진', keywords:['rush'] },
   { id:'dw13', name:'기계 군주', type:'minion', cost:7, attack:6, health:7, emoji:'🦾', desc:'전투 함성: 적 영웅에게 3 데미지', keywords:[], battlecry: (gs, player) => { const opp = player === 'p1' ? 'p2' : 'p1'; gs[opp].hp -= 3; gs.stats[player].totalDamage += 3; showHeroFloatingText(opp, '-3', 'damage'); addLog(`기계 군주가 적 영웅에게 3 데미지!`); } },
   // Spells
-  { id:'dw14', name:'폭탄 투척', type:'spell', cost:1, emoji:'💣', desc:'적 캐릭터 하나에게 3 데미지', target:'enemy_any', effect:'damage', value:3 },
+  { id:'dw14', name:'폭탄 투척', type:'spell', cost:1, emoji:'💣', desc:'적 미니언 하나에게 3 데미지', target:'enemy_minion', effect:'damage', value:3 },
   { id:'dw15', name:'용암 분출', type:'spell', cost:3, emoji:'🌋', desc:'적 미니언 하나에게 4 데미지', target:'enemy_minion', effect:'damage', value:4 },
   { id:'dw16', name:'대폭발', type:'spell', cost:5, emoji:'🔥', desc:'적 미니언 전체에게 3 데미지', target:'none', effect:'aoe_damage', value:3 },
   { id:'dw17', name:'강철 강화', type:'spell', cost:2, emoji:'🛡️', desc:'아군 미니언 하나에게 +2/+2', target:'friendly_minion', effect:'buff', value:2 },
 ];
 
 const FACTION_CONFIG = {
-  human: { name:'인간', cardClass:'human-card', heroClass:'human-hero', emoji:'⚔️', powerName:'성스러운 회복', powerDesc:'영웅 체력 2 회복', cards: HUMAN_CARDS },
-  demon: { name:'악마', cardClass:'demon-card', heroClass:'demon-hero', emoji:'👿', powerName:'구울 소환', powerDesc:'1/1 구울 소환', cards: DEMON_CARDS },
-  elf:   { name:'엘프', cardClass:'elf-card', heroClass:'elf-hero', emoji:'🧝', powerName:'요정의 화살', powerDesc:'적 영웅에게 1 데미지', cards: ELF_CARDS },
-  druid: { name:'드루이드', cardClass:'druid-card', heroClass:'druid-hero', emoji:'🌿', powerName:'야생의 부름', powerDesc:'1/1 다람쥐 소환 (돌진)', cards: DRUID_CARDS },
-  dwarf: { name:'드워프', cardClass:'dwarf-card', heroClass:'dwarf-hero', emoji:'⛏️', powerName:'장갑 강화', powerDesc:'아군 미니언 +1 체력 (없으면 영웅 체력 2 회복)', cards: DWARF_CARDS },
+  human: { name:'인간', cardClass:'human-card', heroClass:'human-hero', emoji:'⚔️', powerName:'성스러운 빛', powerDesc:'영웅 체력 3 회복', cards: HUMAN_CARDS },
+  demon: { name:'악마', cardClass:'demon-card', heroClass:'demon-hero', emoji:'👿', powerName:'생명 착취', powerDesc:'자해 2뎀, 카드 1장 드로우', cards: DEMON_CARDS },
+  elf:   { name:'엘프', cardClass:'elf-card', heroClass:'elf-hero', emoji:'🧝', powerName:'달빛 화살', powerDesc:'적 미니언 1뎀 (없으면 적 영웅 1뎀)', cards: ELF_CARDS },
+  druid: { name:'드루이드', cardClass:'druid-card', heroClass:'druid-hero', emoji:'🌿', powerName:'야생의 부름', powerDesc:'1/1 다람쥐 소환', cards: DRUID_CARDS },
+  dwarf: { name:'드워프', cardClass:'dwarf-card', heroClass:'dwarf-hero', emoji:'⛏️', powerName:'장갑 강화', powerDesc:'아군 미니언 전체 +1 체력 (없으면 영웅 2 회복)', cards: DWARF_CARDS },
 };
 
 const COIN_CARD = { id:'coin', name:'동전', type:'spell', cost:0, emoji:'🪙', desc:'이번 턴 마나 1 획득', target:'none', effect:'coin', value:1 };
@@ -2376,10 +2446,10 @@ function initGame() {
   // P2 gets the coin
   gameState.p2.hand.push({...COIN_CARD, uid: 'coin_' + Math.random().toString(36).substr(2,9)});
 
-  // Start P1's turn
-  startTurn('p1');
-
   playBGM('battle');
+
+  // 멀리건 단계 시작
+  startMulligan('p1');
 }
 
 function getFactionName(f) { return FACTION_CONFIG[f].name; }
@@ -2387,6 +2457,155 @@ function getFactionClass(f) { return FACTION_CONFIG[f].cardClass; }
 function getHeroClass(f) { return FACTION_CONFIG[f].heroClass; }
 function getHeroEmoji(f) { return FACTION_CONFIG[f].emoji; }
 function getHeroPowerName(f) { return FACTION_CONFIG[f].powerName; }
+
+// ===== MULLIGAN =====
+let mulliganPlayer = null;
+let mulliganSelected = new Set();
+
+function startMulligan(player) {
+  mulliganPlayer = player;
+  mulliganSelected = new Set();
+
+  // AI (p2 in AI mode): 자동 멀리건
+  if (gameMode === 'ai' && player === 'p2') {
+    aiMulligan();
+    // 멀리건 완료 → 게임 시작
+    addLog('양측 멀리건 완료!');
+    startTurn('p1');
+    return;
+  }
+
+  const p = gameState[player];
+  const screen = document.getElementById('mulligan-screen');
+  const title = document.getElementById('mulligan-title');
+  const container = document.getElementById('mulligan-cards');
+
+  if (gameMode === 'pvp') {
+    title.textContent = `${player === 'p1' ? '플레이어 1' : '플레이어 2'} - 교환할 카드를 선택하세요`;
+  } else {
+    title.textContent = '교환할 카드를 선택하세요';
+  }
+
+  container.innerHTML = '';
+  p.hand.forEach((card, i) => {
+    // 동전은 멀리건 대상이 아님
+    if (card.id === 'coin') return;
+    const div = document.createElement('div');
+    div.className = 'mulligan-card';
+    div.dataset.index = i;
+    const statsText = card.type === 'minion' ? `${card.attack}/${card.health}` : '주문';
+    div.innerHTML = `
+      <div class="m-cost">${card.cost}</div>
+      <div class="m-emoji">${card.emoji}</div>
+      <div class="m-name">${card.name}</div>
+      <div class="m-stats">${statsText}</div>
+    `;
+    div.onclick = () => {
+      const idx = parseInt(div.dataset.index);
+      if (mulliganSelected.has(idx)) {
+        mulliganSelected.delete(idx);
+        div.classList.remove('selected');
+      } else {
+        mulliganSelected.add(idx);
+        div.classList.add('selected');
+      }
+      playSound('click');
+    };
+    container.appendChild(div);
+  });
+
+  screen.style.display = 'flex';
+}
+
+function confirmMulligan() {
+  const p = gameState[mulliganPlayer];
+  playSound('click');
+
+  if (mulliganSelected.size > 0) {
+    // 선택된 카드를 덱에 넣고 새로 뽑기
+    const selectedIndices = [...mulliganSelected].sort((a, b) => b - a); // 역순으로 제거
+    const cardsToReturn = selectedIndices.map(i => p.hand[i]);
+    selectedIndices.forEach(i => p.hand.splice(i, 1));
+
+    // 덱에 섞어넣기
+    cardsToReturn.forEach(card => {
+      p.deck.push(card);
+    });
+    // 덱 셔플
+    for (let i = p.deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [p.deck[i], p.deck[j]] = [p.deck[j], p.deck[i]];
+    }
+
+    // 같은 수만큼 드로우
+    for (let i = 0; i < cardsToReturn.length; i++) {
+      drawCard(mulliganPlayer);
+    }
+
+    addLog(`${gameMode === 'pvp' ? (mulliganPlayer === 'p1' ? 'P1' : 'P2') : '플레이어'}: ${cardsToReturn.length}장 교환!`);
+  } else {
+    addLog(`${gameMode === 'pvp' ? (mulliganPlayer === 'p1' ? 'P1' : 'P2') : '플레이어'}: 교환 없이 유지!`);
+  }
+
+  document.getElementById('mulligan-screen').style.display = 'none';
+
+  // 다음 단계 결정
+  if (mulliganPlayer === 'p1') {
+    if (gameMode === 'pvp') {
+      // PVP: P2에게 넘기기 전에 전환 안내
+      showMulliganTransition();
+    } else {
+      // AI: P2 자동 멀리건
+      startMulligan('p2');
+    }
+  } else {
+    // 멀리건 완료 → 게임 시작
+    addLog('양측 멀리건 완료!');
+    startTurn('p1');
+  }
+}
+
+function showMulliganTransition() {
+  const overlay = document.getElementById('turn-transition');
+  document.getElementById('transition-text').textContent = '플레이어 2의 멀리건 차례';
+  overlay.style.display = 'flex';
+  // 기존 버튼의 onclick을 임시 변경
+  const btn = overlay.querySelector('button');
+  btn.onclick = () => {
+    overlay.style.display = 'none';
+    btn.onclick = () => confirmTurnTransition(); // 원복
+    startMulligan('p2');
+  };
+}
+
+function aiMulligan() {
+  const p = gameState.p2;
+  const toReturn = [];
+
+  // AI: 4코 이상 카드를 교환 (동전 제외)
+  for (let i = p.hand.length - 1; i >= 0; i--) {
+    if (p.hand[i].id === 'coin') continue;
+    if (p.hand[i].cost >= 4) {
+      toReturn.push(p.hand[i]);
+      p.hand.splice(i, 1);
+    }
+  }
+
+  if (toReturn.length > 0) {
+    toReturn.forEach(card => p.deck.push(card));
+    // 덱 셔플
+    for (let i = p.deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [p.deck[i], p.deck[j]] = [p.deck[j], p.deck[i]];
+    }
+    for (let i = 0; i < toReturn.length; i++) {
+      drawCard('p2');
+    }
+    addLog(`상대: ${toReturn.length}장 교환!`);
+  } else {
+    addLog(`상대: 교환 없이 유지!`);
+  }
+}
 
 let lastDrawnUid = null;
 let lastSummonedUid = null;
@@ -2604,7 +2823,7 @@ function castSpell(player, card, cardIndex, targetType, target) {
   gameState.stats[player].spellsCast++;
   addLog(`${card.name} 시전!`);
   // 주문 종류에 따른 효과음
-  const isBuffSpell = card.effect === 'buff' || card.effect === 'heal';
+  const isBuffSpell = card.effect === 'buff' || card.effect === 'buff_atk' || card.effect === 'heal';
   playSound(isBuffSpell ? 'buff' : 'debuff');
 
   switch(card.effect) {
@@ -2652,6 +2871,15 @@ function castSpell(player, card, cardIndex, targetType, target) {
         target.maxHealth += card.value;
         addLog(`${target.name}에게 +${card.value}/+${card.value} 강화!`);
         showFloatingText(target.uid, `+${card.value}/+${card.value}`, 'heal');
+      }
+      break;
+    case 'buff_atk':
+      if (target && target.uid) {
+        target.currentAttack += card.value;
+        target.currentHealth += 1;
+        target.maxHealth += 1;
+        addLog(`${target.name}에게 +${card.value}/+1 강화!`);
+        showFloatingText(target.uid, `+${card.value}/+1`, 'heal');
       }
       break;
     case 'coin':
@@ -2842,73 +3070,84 @@ function executeHeroPower(p, player, opp, isAI) {
   const oppState = gameState[opp];
 
   if (faction === 'human') {
-    // 성스러운 회복: 영웅 체력 2 회복
-    p.hp = Math.min(30, p.hp + 2);
-    addLog(`${getFactionName(faction)} 영웅이 체력을 2 회복! (${p.hp}/30)`);
+    // 성스러운 빛: 영웅 체력 3 회복
+    const healed = Math.min(3, 30 - p.hp);
+    p.hp = Math.min(30, p.hp + 3);
+    showHeroFloatingText(player, `+${healed}`, 'heal');
+    addLog(`성스러운 빛! 영웅 체력 ${healed} 회복! (${p.hp}/30)`);
 
   } else if (faction === 'demon') {
-    // 구울 소환: 1/1 구울 소환
+    // 생명 착취: 자해 2뎀 + 카드 1장 드로우
+    p.hp -= 2;
+    gameState.stats[player].totalDamage += 0; // 자해는 통계 미포함
+    showHeroFloatingText(player, `-2`, 'damage');
+    addLog(`생명 착취! 자해 2 데미지! (${p.hp}/30)`);
+    checkGameOver();
+    if (!gameState.gameOver) {
+      drawCard(player);
+      addLog(`생명 착취! 카드 1장 드로우!`);
+    }
+
+  } else if (faction === 'elf') {
+    // 달빛 화살: 적 미니언 하나에게 1뎀 (없으면 적 영웅 1뎀)
+    if (oppState.field.length > 0) {
+      if (isAI) {
+        // AI: 체력 1인 미니언 우선, 없으면 공격력 높은 미니언
+        const oneHp = oppState.field.find(m => m.currentHealth === 1);
+        const target = oneHp || [...oppState.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
+        target.currentHealth -= 1;
+        gameState.stats[player].totalDamage += 1;
+        addLog(`달빛 화살! ${target.name}에게 1 데미지!`);
+        showFloatingText(target.uid, `-1`, 'damage');
+        oppState.field = oppState.field.filter(m => m.currentHealth > 0);
+      } else {
+        // 플레이어: 자동으로 체력 가장 낮은 미니언 타격
+        const target = [...oppState.field].sort((a, b) => a.currentHealth - b.currentHealth)[0];
+        target.currentHealth -= 1;
+        gameState.stats[player].totalDamage += 1;
+        addLog(`달빛 화살! ${target.name}에게 1 데미지!`);
+        showFloatingText(target.uid, `-1`, 'damage');
+        oppState.field = oppState.field.filter(m => m.currentHealth > 0);
+      }
+    } else {
+      oppState.hp -= 1;
+      gameState.stats[player].totalDamage += 1;
+      showHeroFloatingText(opp, `-1`, 'damage');
+      addLog(`달빛 화살! 적 영웅에게 1 데미지! (${oppState.hp}/30)`);
+    }
+
+  } else if (faction === 'druid') {
+    // 야생의 부름: 1/1 다람쥐 소환 (돌진 없음)
     if (p.field.length < 7) {
-      const ghoul = {
-        id: 'ghoul_token', name: '구울', type: 'minion', cost: 0,
-        attack: 1, health: 1, emoji: '💀', desc: '영웅 능력으로 소환됨',
+      const squirrel = {
+        id: 'squirrel_token', name: '다람쥐', type: 'minion', cost: 0,
+        attack: 1, health: 1, emoji: '🐿️', desc: '',
         keywords: [],
         uid: Date.now() + Math.random(),
         currentHealth: 1, maxHealth: 1, currentAttack: 1,
         canAttack: false, summonedThisTurn: true, attacksThisTurn: 0,
       };
-      p.field.push(ghoul);
-      lastSummonedUid = ghoul.uid;
-      addLog(`구울 소환! (1/1)`);
-      playSound('summon');
-    } else {
-      addLog(`필드가 가득 차서 구울을 소환할 수 없습니다!`);
-    }
-
-  } else if (faction === 'elf') {
-    // 요정의 화살: 적 영웅에게 1 데미지
-    oppState.hp -= 1;
-    gameState.stats[player].totalDamage += 1;
-    addLog(`요정의 화살! 적 영웅에게 1 데미지! (${oppState.hp}/30)`);
-
-  } else if (faction === 'druid') {
-    // 야생의 부름: 1/1 다람쥐 소환 (돌진)
-    if (p.field.length < 7) {
-      const squirrel = {
-        id: 'squirrel_token', name: '다람쥐', type: 'minion', cost: 0,
-        attack: 1, health: 1, emoji: '🐿️', desc: '돌진',
-        keywords: ['rush'],
-        uid: Date.now() + Math.random(),
-        currentHealth: 1, maxHealth: 1, currentAttack: 1,
-        canAttack: true, summonedThisTurn: true, attacksThisTurn: 0,
-      };
       p.field.push(squirrel);
       lastSummonedUid = squirrel.uid;
-      addLog(`다람쥐 소환! (1/1) - 돌진`);
+      addLog(`다람쥐 소환! (1/1)`);
       playSound('summon');
     } else {
       addLog(`필드가 가득 차서 다람쥐를 소환할 수 없습니다!`);
     }
 
   } else if (faction === 'dwarf') {
-    // 장갑 강화: 아군 미니언 하나에게 +1 체력, 없으면 영웅 방어도 2
+    // 장갑 강화: 아군 미니언 전체 +1 체력, 없으면 영웅 2 회복
     if (p.field.length > 0) {
-      if (isAI) {
-        // AI: 가장 공격력 높은 미니언에게 체력 부여
-        const target = [...p.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
-        target.currentHealth += 1;
-        target.maxHealth += 1;
-        addLog(`장갑 강화! ${target.name}의 체력 +1! (${target.currentAttack}/${target.currentHealth})`);
-      } else {
-        // 플레이어: 자동으로 가장 체력 낮은 미니언에게 부여 (타겟팅 없이 간단 처리)
-        const target = [...p.field].sort((a, b) => a.currentHealth - b.currentHealth)[0];
-        target.currentHealth += 1;
-        target.maxHealth += 1;
-        addLog(`장갑 강화! ${target.name}의 체력 +1! (${target.currentAttack}/${target.currentHealth})`);
-      }
+      p.field.forEach(m => {
+        m.currentHealth += 1;
+        m.maxHealth += 1;
+        showFloatingText(m.uid, `+1`, 'heal');
+      });
+      addLog(`장갑 강화! 아군 미니언 전체 체력 +1!`);
+      playSound('buff');
     } else {
-      // 미니언이 없으면 영웅 방어도 2
       p.hp = Math.min(30, p.hp + 2);
+      showHeroFloatingText(player, `+2`, 'heal');
       addLog(`장갑 강화! 미니언이 없어 영웅 체력 2 회복! (${p.hp}/30)`);
     }
   }
@@ -3105,7 +3344,7 @@ function aiTurn() {
             castSpell('p2', card, ci, 'hero', 'hero');
           }
         }
-      } else if (card.effect === 'buff' && p.field.length > 0) {
+      } else if ((card.effect === 'buff' || card.effect === 'buff_atk') && p.field.length > 0) {
         const target = [...p.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
         castSpell('p2', card, ci, 'minion', target);
       } else if (card.effect === 'heal') {
@@ -3128,12 +3367,16 @@ function aiTurn() {
 
   // 2. Use hero power if possible
   if (!p.heroPowerUsed && p.mana >= 2) {
-    p.mana -= 2;
-    p.heroPowerUsed = true;
-    gameState.stats.p2.heroPowerUsed++;
-    executeHeroPower(p, 'p2', 'p1', true);
-    checkGameOver();
-    render();
+    // 악마: HP 5 이하면 자해 영웅 능력 자제
+    const shouldUseHeroPower = !(p.faction === 'demon' && p.hp <= 5);
+    if (shouldUseHeroPower) {
+      p.mana -= 2;
+      p.heroPowerUsed = true;
+      gameState.stats.p2.heroPowerUsed++;
+      executeHeroPower(p, 'p2', 'p1', true);
+      checkGameOver();
+      render();
+    }
   }
 
   // 3. Attack with minions
@@ -3576,6 +3819,7 @@ function showMainMenu() {
   document.getElementById('pause-menu').style.display = 'none';
   document.getElementById('settings-menu').style.display = 'none';
   document.getElementById('menu-settings').style.display = 'none';
+  document.getElementById('mulligan-screen').style.display = 'none';
   // 잔여 플로팅 텍스트 / 화면 플래시 DOM 정리
   document.querySelectorAll('.floating-text, .screen-flash').forEach(el => el.remove());
   gameState = null;

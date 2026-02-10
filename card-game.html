@@ -3343,33 +3343,43 @@ function confirmTurnTransition() {
 }
 
 // ===== AI =====
+const AI_DELAY = 600; // 카드 간 딜레이(ms)
+
 function aiTurn() {
   if (gameState.gameOver || gameState.currentPlayer !== 'p2') return;
 
+  // 1단계: 카드 플레이 (딜레이 포함 순차 실행)
+  aiPlayNextCard();
+}
+
+function aiPlayNextCard() {
+  if (gameState.gameOver) return;
   const p = gameState.p2;
   const opp = gameState.p1;
 
-  // Simple AI: play cards, attack, use hero power
-  let actions = [];
+  const playable = p.hand
+    .map((c, i) => ({card: c, index: i}))
+    .filter(({card}) => card.cost <= p.mana)
+    .sort((a, b) => b.card.cost - a.card.cost);
 
-  // 1. Play cards (매 반복 재계산으로 인덱스 안전성 확보)
-  let keepPlaying = true;
-  while (keepPlaying) {
-    keepPlaying = false;
-    const playable = p.hand
-      .map((c, i) => ({card: c, index: i}))
-      .filter(({card}) => card.cost <= p.mana)
-      .sort((a, b) => b.card.cost - a.card.cost);
-    if (playable.length === 0) break;
+  if (playable.length === 0) {
+    // 카드 플레이 끝 → 영웅 능력 → 공격
+    setTimeout(() => aiUseHeroPower(), AI_DELAY);
+    return;
+  }
 
-    const {card} = playable[0];
-    if (card.cost > p.mana) break;
+  const {card} = playable[0];
+  if (card.cost > p.mana) {
+    setTimeout(() => aiUseHeroPower(), AI_DELAY);
+    return;
+  }
 
-    const prevHandSize = p.hand.length;
+  const prevHandSize = p.hand.length;
+  let played = false;
 
-    if (card.type === 'minion' && p.field.length < 7) {
-      const ci = p.hand.findIndex(c => c.uid === card.uid);
-      if (ci < 0) break;
+  if (card.type === 'minion' && p.field.length < 7) {
+    const ci = p.hand.findIndex(c => c.uid === card.uid);
+    if (ci >= 0) {
       if (card.battlecry_target === 'enemy_minion' && opp.field.length > 0) {
         const target = opp.field.reduce((best, m) => {
           if (m.currentHealth <= card.battlecry_damage) return m;
@@ -3388,15 +3398,15 @@ function aiTurn() {
       } else {
         summonMinion('p2', card, ci);
       }
-    } else if (card.type === 'spell') {
-      const ci = p.hand.findIndex(c => c.uid === card.uid);
-      if (ci < 0) break;
-      showAiActionBanner(`${card.emoji} ${card.name} 시전!`);
+      played = true;
+    }
+  } else if (card.type === 'spell') {
+    const ci = p.hand.findIndex(c => c.uid === card.uid);
+    if (ci >= 0) {
+      if (card.effect !== 'coin') showAiActionBanner(`${card.emoji} ${card.name} 시전!`);
 
       if (card.effect === 'aoe_damage') {
-        if (opp.field.length >= 2) {
-          castSpell('p2', card, ci, null, null);
-        }
+        if (opp.field.length >= 2) { castSpell('p2', card, ci, null, null); played = true; }
       } else if (card.effect === 'damage') {
         if (card.target === 'enemy_minion' && opp.field.length > 0) {
           const target = [...opp.field].sort((a, b) => {
@@ -3404,7 +3414,7 @@ function aiTurn() {
             if (b.currentHealth <= card.value && a.currentHealth > card.value) return 1;
             return b.currentAttack - a.currentAttack;
           })[0];
-          castSpell('p2', card, ci, 'minion', target);
+          castSpell('p2', card, ci, 'minion', target); played = true;
         } else if (card.target === 'enemy_any') {
           const killable = opp.field.find(m => m.currentHealth <= card.value);
           if (killable) {
@@ -3416,40 +3426,47 @@ function aiTurn() {
           } else {
             castSpell('p2', card, ci, 'hero', 'hero');
           }
+          played = true;
         }
       } else if ((card.effect === 'buff' || card.effect === 'buff_atk') && p.field.length > 0) {
         const target = [...p.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
-        castSpell('p2', card, ci, 'minion', target);
+        castSpell('p2', card, ci, 'minion', target); played = true;
       } else if (card.effect === 'heal') {
-        // 아군 미니언 중 체력이 가장 많이 빠진 미니언 찾기
         const damaged = [...p.field].filter(m => m.currentHealth < m.maxHealth)
           .sort((a, b) => (b.maxHealth - b.currentHealth) - (a.maxHealth - a.currentHealth));
         if (card.target === 'friendly_any') {
           if (damaged.length > 0 && (damaged[0].maxHealth - damaged[0].currentHealth) >= card.value) {
-            castSpell('p2', card, ci, 'minion', damaged[0]);
+            castSpell('p2', card, ci, 'minion', damaged[0]); played = true;
           } else if (p.hp < 20) {
-            castSpell('p2', card, ci, 'hero', 'hero');
+            castSpell('p2', card, ci, 'hero', 'hero'); played = true;
           }
         } else if (card.target === 'friendly_minion' && damaged.length > 0) {
-          castSpell('p2', card, ci, 'minion', damaged[0]);
+          castSpell('p2', card, ci, 'minion', damaged[0]); played = true;
         }
       } else if (card.effect === 'coin') {
         const couldPlay = p.hand.some(c => c.id !== 'coin' && c.cost === p.mana + 1 &&
           (c.type !== 'minion' || p.field.length < 7));
-        if (couldPlay) {
-          castSpell('p2', card, ci, null, null);
-        }
+        if (couldPlay) { castSpell('p2', card, ci, null, null); played = true; }
       }
     }
-
-    // 카드가 실제로 플레이되었으면 재반복
-    keepPlaying = p.hand.length < prevHandSize;
-    render();
   }
 
-  // 2. Use hero power if possible
+  render();
+
+  if (played && p.hand.length < prevHandSize) {
+    // 다음 카드 플레이 (딜레이)
+    setTimeout(() => aiPlayNextCard(), AI_DELAY);
+  } else {
+    // 더 이상 플레이 불가 → 영웅 능력 → 공격
+    setTimeout(() => aiUseHeroPower(), AI_DELAY);
+  }
+}
+
+function aiUseHeroPower() {
+  if (gameState.gameOver) { aiStartAttack(); return; }
+  const p = gameState.p2;
+
   if (!p.heroPowerUsed && p.mana >= 2) {
-    // 악마: HP 5 이하면 자해 영웅 능력 자제
     const shouldUseHeroPower = !(p.faction === 'demon' && p.hp <= 5);
     if (shouldUseHeroPower) {
       showAiActionBanner(`⚡ ${getHeroPowerName(p.faction)}!`);
@@ -3462,10 +3479,12 @@ function aiTurn() {
     }
   }
 
-  // 3. Attack with minions
-  setTimeout(() => {
-    aiAttack();
-  }, 300);
+  setTimeout(() => aiStartAttack(), AI_DELAY);
+}
+
+function aiStartAttack() {
+  if (gameState.gameOver) return;
+  aiAttack();
 }
 
 function aiAttack() {

@@ -152,6 +152,13 @@ body {
   font-size: 0.9em;
   line-height: 1.5;
 }
+.faction-power {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  color: #ddd !important;
+  font-size: 0.85em !important;
+}
 
 .back-btn {
   margin-top: 30px;
@@ -1616,27 +1623,32 @@ body {
     <div class="faction-card human" onclick="selectFaction('human')">
       <div class="faction-icon">⚔️</div>
       <h3>인간</h3>
-      <p>신성한 마법과 기사단의 힘<br><br>✨ 영웅 체력 3 회복</p>
+      <p>신성한 마법과 기사단의 힘</p>
+      <p class="faction-power">✨ 체력 3 회복</p>
     </div>
     <div class="faction-card demon" onclick="selectFaction('demon')">
       <div class="faction-icon">👿</div>
       <h3>악마</h3>
-      <p>지옥의 군단과 어둠의 힘<br><br>💀 자해 2뎀, 카드 드로우</p>
+      <p>지옥의 군단과 어둠의 힘</p>
+      <p class="faction-power">💀 자해 2, 드로우 1</p>
     </div>
     <div class="faction-card elf" onclick="selectFaction('elf')">
       <div class="faction-icon">🧝</div>
       <h3>엘프</h3>
-      <p>숲의 정밀한 궁술과 마법<br><br>🏹 적 미니언 1뎀 (없으면 영웅)</p>
+      <p>숲의 정밀한 궁술과 마법</p>
+      <p class="faction-power">🏹 적 미니언 1뎀</p>
     </div>
     <div class="faction-card druid" onclick="selectFaction('druid')">
       <div class="faction-icon">🌿</div>
       <h3>드루이드</h3>
-      <p>자연과 야수의 원시적 힘<br><br>🐿️ 1/1 다람쥐 소환</p>
+      <p>자연과 야수의 원시적 힘</p>
+      <p class="faction-power">🐿️ 1/1 다람쥐 소환</p>
     </div>
     <div class="faction-card dwarf" onclick="selectFaction('dwarf')">
       <div class="faction-icon">⛏️</div>
       <h3>드워프</h3>
-      <p>광산의 기술과 강철의 힘<br><br>🛡️ 아군 전체 +1 체력</p>
+      <p>광산의 기술과 강철의 힘</p>
+      <p class="faction-power">🛡️ 아군 전체 체력+1</p>
     </div>
   </div>
   <button class="back-btn" onclick="playSound('click'); factionSelectBack()">뒤로</button>

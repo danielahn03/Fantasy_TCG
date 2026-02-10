@@ -3678,9 +3678,9 @@ function renderHand(elementId, p, playerKey, isMine) {
   const isCurrentPlayer = gameState.currentPlayer === playerKey;
 
   const count = p.hand.length;
-  // 8장 이상부터 겹침, 7장 이상부터 미세 회전
-  const fanEnabled = count >= 7;
-  const maxAngle = Math.min((count - 6) * 2, 15); // 7장=2°, 10장=8°, 최대 15°
+  // 아크(부채꼴) 배치: 카드 수에 따라 회전 + 곡선 상승
+  const maxAngle = count <= 4 ? count * 1.5 : Math.min(count * 1.8, 20); // 전체 회전 범위
+  const arcHeight = count <= 4 ? count * 3 : Math.min(count * 4, 45); // 중앙 카드 상승폭(px)
   const overlapMargin = count > 8 ? Math.min(-10, -(count - 8) * 6) : 0;
 
   p.hand.forEach((card, i) => {
@@ -3692,17 +3692,16 @@ function renderHand(elementId, p, playerKey, isMine) {
     if (card.uid === lastDrawnUid) lastDrawnUid = null;
     el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''} ${drawAnim}`;
 
-    // 팬 레이아웃: 카드가 많으면 겹치며 약간 회전
-    if (fanEnabled) {
-      const center = (count - 1) / 2;
-      const offset = i - center;
-      const angle = center > 0 ? (offset / center) * maxAngle : 0;
-      const yShift = Math.abs(offset) * 1.5; // 가장자리 미세 하강
-      el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
-      el.style.transformOrigin = 'center bottom';
-      if (overlapMargin && i > 0) el.style.marginLeft = `${overlapMargin}px`;
-      el.style.zIndex = i;
-    }
+    // 아크 배치: 중앙 카드 높고, 양쪽으로 갈수록 낮아지며 회전
+    const center = (count - 1) / 2;
+    const offset = i - center;
+    const normalizedOffset = center > 0 ? offset / center : 0; // -1 ~ +1
+    const angle = normalizedOffset * maxAngle;
+    const yShift = normalizedOffset * normalizedOffset * arcHeight; // 포물선: 중앙=0, 양끝=arcHeight
+    el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
+    el.style.transformOrigin = 'center bottom';
+    if (overlapMargin && i > 0) el.style.marginLeft = `${overlapMargin}px`;
+    el.style.zIndex = i;
 
     el.innerHTML = `
       <div class="card-mana">${card.cost}</div>

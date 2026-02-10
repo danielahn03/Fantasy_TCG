@@ -3678,9 +3678,10 @@ function renderHand(elementId, p, playerKey, isMine) {
   const isCurrentPlayer = gameState.currentPlayer === playerKey;
 
   const count = p.hand.length;
-  // 아크(부채꼴) 배치: 카드 수에 따라 회전 + 곡선 상승
-  const maxAngle = count <= 4 ? count * 1.5 : Math.min(count * 1.8, 20); // 전체 회전 범위
-  const arcHeight = count <= 4 ? count * 3 : Math.min(count * 4, 45); // 중앙 카드 상승폭(px)
+  // 7장 이상부터 아크(부채꼴) 배치
+  const arcEnabled = count >= 7;
+  const maxAngle = arcEnabled ? Math.min((count - 5) * 2, 18) : 0;
+  const arcHeight = arcEnabled ? Math.min((count - 5) * 5, 40) : 0;
   const overlapMargin = count > 8 ? Math.min(-10, -(count - 8) * 6) : 0;
 
   p.hand.forEach((card, i) => {
@@ -3692,16 +3693,18 @@ function renderHand(elementId, p, playerKey, isMine) {
     if (card.uid === lastDrawnUid) lastDrawnUid = null;
     el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''} ${drawAnim}`;
 
-    // 아크 배치: 중앙 카드 높고, 양쪽으로 갈수록 낮아지며 회전
-    const center = (count - 1) / 2;
-    const offset = i - center;
-    const normalizedOffset = center > 0 ? offset / center : 0; // -1 ~ +1
-    const angle = normalizedOffset * maxAngle;
-    const yShift = normalizedOffset * normalizedOffset * arcHeight; // 포물선: 중앙=0, 양끝=arcHeight
-    el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
-    el.style.transformOrigin = 'center bottom';
-    if (overlapMargin && i > 0) el.style.marginLeft = `${overlapMargin}px`;
-    el.style.zIndex = i;
+    // 아크 배치: 7장+ 시 중앙 높고, 양쪽으로 갈수록 낮아지며 회전
+    if (arcEnabled) {
+      const center = (count - 1) / 2;
+      const offset = i - center;
+      const normalizedOffset = center > 0 ? offset / center : 0;
+      const angle = normalizedOffset * maxAngle;
+      const yShift = normalizedOffset * normalizedOffset * arcHeight;
+      el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
+      el.style.transformOrigin = 'center bottom';
+      if (overlapMargin && i > 0) el.style.marginLeft = `${overlapMargin}px`;
+      el.style.zIndex = i;
+    }
 
     el.innerHTML = `
       <div class="card-mana">${card.cost}</div>

@@ -3664,7 +3664,7 @@ function renderHand(elementId, p, playerKey, isMine) {
   if (!isMine) {
     // Show card backs
     const backCount = p.hand.length;
-    const backOverlap = backCount > 7 ? Math.min(-10, -(backCount - 7) * 4) : 0;
+    const backOverlap = backCount > 8 ? Math.min(-10, -(backCount - 8) * 5) : 0;
     for (let i = 0; i < backCount; i++) {
       const back = document.createElement('div');
       back.className = `card-back card-back-${p.faction}`;
@@ -3678,9 +3678,10 @@ function renderHand(elementId, p, playerKey, isMine) {
   const isCurrentPlayer = gameState.currentPlayer === playerKey;
 
   const count = p.hand.length;
-  const fanEnabled = count > 5;
-  const maxAngle = Math.min(count * 2.5, 25); // 최대 회전 범위
-  const overlapMargin = count > 7 ? Math.min(-15, -(count - 7) * 5) : 0;
+  // 8장 이상부터 겹침, 7장 이상부터 미세 회전
+  const fanEnabled = count >= 7;
+  const maxAngle = Math.min((count - 6) * 2, 15); // 7장=2°, 10장=8°, 최대 15°
+  const overlapMargin = count > 8 ? Math.min(-10, -(count - 8) * 6) : 0;
 
   p.hand.forEach((card, i) => {
     const el = document.createElement('div');
@@ -3695,11 +3696,11 @@ function renderHand(elementId, p, playerKey, isMine) {
     if (fanEnabled) {
       const center = (count - 1) / 2;
       const offset = i - center;
-      const angle = (offset / center) * maxAngle;
-      const yShift = Math.abs(offset) * 3; // 가장자리 카드 약간 내려감
+      const angle = center > 0 ? (offset / center) * maxAngle : 0;
+      const yShift = Math.abs(offset) * 1.5; // 가장자리 미세 하강
       el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
       el.style.transformOrigin = 'center bottom';
-      el.style.marginLeft = i === 0 ? '0' : `${overlapMargin}px`;
+      if (overlapMargin && i > 0) el.style.marginLeft = `${overlapMargin}px`;
       el.style.zIndex = i;
     }
 

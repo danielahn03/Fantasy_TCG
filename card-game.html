@@ -355,15 +355,17 @@ body {
 .hand-area {
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 5px;
+  align-items: flex-end;
+  padding: 5px 10px;
   min-height: 120px;
-  gap: 3px;
-  overflow-x: auto;
+  gap: 0;
+  overflow: visible;
+  position: relative;
 }
 
 .hand-area.opponent-hand {
   min-height: 60px;
+  align-items: flex-start;
 }
 
 /* Field area */
@@ -404,8 +406,8 @@ body {
 }
 
 .card.in-hand:hover {
-  transform: translateY(-15px) scale(1.1);
-  z-index: 100;
+  transform: translateY(-20px) scale(1.15) rotate(0deg) !important;
+  z-index: 100 !important;
   box-shadow: 0 5px 20px rgba(0,0,0,0.5);
 }
 
@@ -853,6 +855,17 @@ body {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   padding: 15px 25px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.stats-turn-info {
+  width: 100%;
+  text-align: center;
+  font-size: 1.1em;
+  color: #aaa;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 5px;
 }
 .stats-column {
   text-align: center;
@@ -964,13 +977,14 @@ body {
 
 /* Summon animation */
 .summon-anim {
-  animation: summonPop 0.4s ease-out;
+  animation: summonPop 0.5s ease-out;
 }
 
 @keyframes summonPop {
-  0% { opacity: 0; transform: scale(0) translateY(20px); }
-  60% { opacity: 1; transform: scale(1.15) translateY(-5px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  0% { opacity: 0; transform: scale(0) translateY(30px); box-shadow: 0 0 30px rgba(255,215,0,0.8); }
+  40% { opacity: 1; transform: scale(1.2) translateY(-5px); box-shadow: 0 0 20px rgba(255,215,0,0.5); }
+  70% { transform: scale(0.95) translateY(2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); box-shadow: none; }
 }
 
 /* Attack animation */
@@ -1030,6 +1044,33 @@ body {
   40% { transform: translateX(5px); }
   60% { transform: translateX(-3px); }
   80% { transform: translateX(3px); }
+}
+
+/* AI Action Banner */
+.ai-action-banner {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.85);
+  color: #f1c40f;
+  padding: 12px 30px;
+  border-radius: 10px;
+  font-size: 1.1em;
+  font-weight: bold;
+  z-index: 700;
+  border: 2px solid rgba(241,196,15,0.3);
+  pointer-events: none;
+  animation: aiBannerFade 1.2s ease-out forwards;
+  text-align: center;
+  white-space: nowrap;
+}
+@keyframes aiBannerFade {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Card tooltip */
@@ -1759,9 +1800,12 @@ body {
 </div>
 
 <!-- Cancel target button -->
-<button class="cancel-target" id="cancel-target-btn" onclick="cancelTargeting()">취소 (우클릭)</button>
+<button class="cancel-target" id="cancel-target-btn" onclick="cancelTargeting()">취소</button>
 
 <!-- Tooltip -->
+<!-- AI Action Banner -->
+<div class="ai-action-banner" id="ai-action-banner"></div>
+
 <div class="card-tooltip" id="card-tooltip">
   <div class="tooltip-name"></div>
   <div class="tooltip-desc"></div>
@@ -2617,6 +2661,7 @@ function drawCard(player) {
     // Fatigue damage
     p.fatigue = (p.fatigue || 0) + 1;
     p.hp -= p.fatigue;
+    showHeroFloatingText(player, `-${p.fatigue}`, 'damage');
     addLog(`${getFactionName(p.faction)}: 덱 소진! ${p.fatigue} 피로 데미지!`);
     checkGameOver();
     return;
@@ -2822,9 +2867,11 @@ function castSpell(player, card, cardIndex, targetType, target) {
 
   gameState.stats[player].spellsCast++;
   addLog(`${card.name} 시전!`);
-  // 주문 종류에 따른 효과음
-  const isBuffSpell = card.effect === 'buff' || card.effect === 'buff_atk' || card.effect === 'heal';
-  playSound(isBuffSpell ? 'buff' : 'debuff');
+  // 주문 종류에 따른 효과음 (코인은 자체 사운드 사용)
+  if (card.effect !== 'coin') {
+    const isBuffSpell = card.effect === 'buff' || card.effect === 'buff_atk' || card.effect === 'heal';
+    playSound(isBuffSpell ? 'buff' : 'debuff');
+  }
 
   switch(card.effect) {
     case 'damage':
@@ -2909,12 +2956,20 @@ function selectAttacker(minion) {
 
   clearSelection();
   selectedAttacker = minion;
+  // 공격 화살표 시작점 설정
+  const minionEl = document.querySelector(`[data-uid="${minion.uid}"]`);
+  if (minionEl) {
+    const rect = minionEl.getBoundingClientRect();
+    attackArrowStart = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    showAttackArrow(attackArrowStart.x, attackArrowStart.y, attackArrowStart.x, attackArrowStart.y);
+  }
   render();
 }
 
 function attackTarget(target, targetPlayer) {
   if (!selectedAttacker || gameState.gameOver) return;
   if (isAttacking) return;
+  hideAttackArrow();
 
   const player = gameState.currentPlayer;
   const opp = player === 'p1' ? 'p2' : 'p1';
@@ -2990,14 +3045,15 @@ function attackTarget(target, targetPlayer) {
         if (healed > 0) addLog(`생명력 흡수! ${healed} 회복!`);
       }
 
+      // 사망 처리 전에 공격 상태 업데이트
+      attacker.canAttack = false;
+      attacker.attacksThisTurn++;
+
       const deadCount = gameState[player].field.filter(m => m.currentHealth <= 0).length +
                         gameState[opp].field.filter(m => m.currentHealth <= 0).length;
       if (deadCount > 0) setTimeout(() => playSound('death'), 100);
       gameState[player].field = gameState[player].field.filter(m => m.currentHealth > 0);
       gameState[opp].field = gameState[opp].field.filter(m => m.currentHealth > 0);
-
-      attacker.canAttack = false;
-      attacker.attacksThisTurn++;
     }
 
     isAttacking = false;
@@ -3172,6 +3228,25 @@ function clearSelection() {
   targetingSpell = null;
   battlecryTarget = null;
   document.getElementById('cancel-target-btn').style.display = 'none';
+  hideAttackArrow();
+}
+
+// ===== ATTACK ARROW =====
+let attackArrowStart = null;
+
+function showAttackArrow(x1, y1, x2, y2) {
+  const svg = document.getElementById('attack-arrow');
+  const line = document.getElementById('arrow-line');
+  svg.style.display = 'block';
+  line.setAttribute('x1', x1);
+  line.setAttribute('y1', y1);
+  line.setAttribute('x2', x2);
+  line.setAttribute('y2', y2);
+}
+
+function hideAttackArrow() {
+  document.getElementById('attack-arrow').style.display = 'none';
+  attackArrowStart = null;
 }
 
 // ===== GAME OVER =====
@@ -3220,11 +3295,13 @@ function showGameOver() {
   const p1Name = getFactionName(gameState.p1.faction);
   const p2Name = getFactionName(gameState.p2.faction);
   statsEl.innerHTML = `
+    <div class="stats-turn-info">총 ${gameState.turn} 턴</div>
     <div class="stats-column">
       <h3>${getHeroEmoji(gameState.p1.faction)} ${p1Name}</h3>
       <div class="stat-row"><span>총 데미지</span><span>${s1.totalDamage}</span></div>
       <div class="stat-row"><span>미니언 소환</span><span>${s1.minionsPlayed}</span></div>
       <div class="stat-row"><span>주문 사용</span><span>${s1.spellsCast}</span></div>
+      <div class="stat-row"><span>카드 드로우</span><span>${s1.cardsDrawn}</span></div>
       <div class="stat-row"><span>영웅 능력</span><span>${s1.heroPowerUsed}</span></div>
     </div>
     <div class="stats-column">
@@ -3232,6 +3309,7 @@ function showGameOver() {
       <div class="stat-row"><span>총 데미지</span><span>${s2.totalDamage}</span></div>
       <div class="stat-row"><span>미니언 소환</span><span>${s2.minionsPlayed}</span></div>
       <div class="stat-row"><span>주문 사용</span><span>${s2.spellsCast}</span></div>
+      <div class="stat-row"><span>카드 드로우</span><span>${s2.cardsDrawn}</span></div>
       <div class="stat-row"><span>영웅 능력</span><span>${s2.heroPowerUsed}</span></div>
     </div>
   `;
@@ -3244,9 +3322,9 @@ function showGameOver() {
   overlay.style.display = 'flex';
   stopBGM();
 
-  // 승리/패배 BGM
-  const isWin = (gameMode === 'ai' && gameState.winner === 'p1') || gameMode !== 'ai';
-  setTimeout(() => playBGM(isWin ? 'victory' : 'defeat'), 600);
+  // 승리/패배 BGM (AI: P1승리시 victory, PVP: 항상 victory)
+  const playVictory = gameMode !== 'ai' || gameState.winner === 'p1';
+  setTimeout(() => playBGM(playVictory ? 'victory' : 'defeat'), 600);
 }
 
 // ===== PVP TURN TRANSITION =====
@@ -3279,44 +3357,47 @@ function aiTurn() {
   // Simple AI: play cards, attack, use hero power
   let actions = [];
 
-  // 1. Play cards (sorted by cost descending for efficiency)
-  let playableCards = p.hand
-    .map((c, i) => ({card: c, index: i}))
-    .filter(({card}) => card.cost <= p.mana)
-    .sort((a, b) => b.card.cost - a.card.cost);
+  // 1. Play cards (매 반복 재계산으로 인덱스 안전성 확보)
+  let keepPlaying = true;
+  while (keepPlaying) {
+    keepPlaying = false;
+    const playable = p.hand
+      .map((c, i) => ({card: c, index: i}))
+      .filter(({card}) => card.cost <= p.mana)
+      .sort((a, b) => b.card.cost - a.card.cost);
+    if (playable.length === 0) break;
 
-  for (const {card, index} of playableCards) {
-    if (card.cost > p.mana) continue;
+    const {card} = playable[0];
+    if (card.cost > p.mana) break;
+
+    const prevHandSize = p.hand.length;
 
     if (card.type === 'minion' && p.field.length < 7) {
-      // Play minion
+      const ci = p.hand.findIndex(c => c.uid === card.uid);
+      if (ci < 0) break;
+      showAiActionBanner(`${card.emoji} ${card.name} 소환!`);
       if (card.battlecry_target === 'enemy_minion' && opp.field.length > 0) {
-        // Find best target for battlecry
         const target = opp.field.reduce((best, m) => {
-          if (m.currentHealth <= card.battlecry_damage) return m; // Kill target
+          if (m.currentHealth <= card.battlecry_damage) return m;
           return best || m;
         }, null) || opp.field[0];
-
-        const ci = p.hand.findIndex(c => c.uid === card.uid);
-        if (ci >= 0) {
-          summonMinion('p2', card, ci);
-          if (target) {
-            triggerBattlecryFlash();
-            playSound('debuff');
-            target.currentHealth -= card.battlecry_damage;
-            gameState.stats.p2.totalDamage += card.battlecry_damage;
-            addLog(`${card.name}의 전투 함성! ${target.name}에게 ${card.battlecry_damage} 데미지!`);
-            showFloatingText(target.uid, `-${card.battlecry_damage}`, 'damage');
-            opp.field = opp.field.filter(m => m.currentHealth > 0);
-          }
+        summonMinion('p2', card, ci);
+        if (target) {
+          triggerBattlecryFlash();
+          playSound('debuff');
+          target.currentHealth -= card.battlecry_damage;
+          gameState.stats.p2.totalDamage += card.battlecry_damage;
+          addLog(`${card.name}의 전투 함성! ${target.name}에게 ${card.battlecry_damage} 데미지!`);
+          showFloatingText(target.uid, `-${card.battlecry_damage}`, 'damage');
+          opp.field = opp.field.filter(m => m.currentHealth > 0);
         }
       } else {
-        const ci = p.hand.findIndex(c => c.uid === card.uid);
-        if (ci >= 0) summonMinion('p2', card, ci);
+        summonMinion('p2', card, ci);
       }
     } else if (card.type === 'spell') {
       const ci = p.hand.findIndex(c => c.uid === card.uid);
-      if (ci < 0) continue;
+      if (ci < 0) break;
+      showAiActionBanner(`${card.emoji} ${card.name} 시전!`);
 
       if (card.effect === 'aoe_damage') {
         if (opp.field.length >= 2) {
@@ -3324,7 +3405,6 @@ function aiTurn() {
         }
       } else if (card.effect === 'damage') {
         if (card.target === 'enemy_minion' && opp.field.length > 0) {
-          // Target highest health minion that can be killed, or highest attack
           const target = [...opp.field].sort((a, b) => {
             if (a.currentHealth <= card.value && b.currentHealth > card.value) return -1;
             if (b.currentHealth <= card.value && a.currentHealth > card.value) return 1;
@@ -3332,7 +3412,6 @@ function aiTurn() {
           })[0];
           castSpell('p2', card, ci, 'minion', target);
         } else if (card.target === 'enemy_any') {
-          // Prefer killing minions, otherwise go face
           const killable = opp.field.find(m => m.currentHealth <= card.value);
           if (killable) {
             castSpell('p2', card, ci, 'minion', killable);
@@ -3348,11 +3427,19 @@ function aiTurn() {
         const target = [...p.field].sort((a, b) => b.currentAttack - a.currentAttack)[0];
         castSpell('p2', card, ci, 'minion', target);
       } else if (card.effect === 'heal') {
-        if (p.hp < 20 && card.target === 'friendly_any') {
-          castSpell('p2', card, ci, 'hero', 'hero');
+        // 아군 미니언 중 체력이 가장 많이 빠진 미니언 찾기
+        const damaged = [...p.field].filter(m => m.currentHealth < m.maxHealth)
+          .sort((a, b) => (b.maxHealth - b.currentHealth) - (a.maxHealth - a.currentHealth));
+        if (card.target === 'friendly_any') {
+          if (damaged.length > 0 && (damaged[0].maxHealth - damaged[0].currentHealth) >= card.value) {
+            castSpell('p2', card, ci, 'minion', damaged[0]);
+          } else if (p.hp < 20) {
+            castSpell('p2', card, ci, 'hero', 'hero');
+          }
+        } else if (card.target === 'friendly_minion' && damaged.length > 0) {
+          castSpell('p2', card, ci, 'minion', damaged[0]);
         }
       } else if (card.effect === 'coin') {
-        // 코인을 쓰면 플레이할 수 있는 카드가 있을 때만 사용
         const couldPlay = p.hand.some(c => c.id !== 'coin' && c.cost === p.mana + 1 &&
           (c.type !== 'minion' || p.field.length < 7));
         if (couldPlay) {
@@ -3361,7 +3448,8 @@ function aiTurn() {
       }
     }
 
-    // Recalculate after each card played
+    // 카드가 실제로 플레이되었으면 재반복
+    keepPlaying = p.hand.length < prevHandSize;
     render();
   }
 
@@ -3370,6 +3458,7 @@ function aiTurn() {
     // 악마: HP 5 이하면 자해 영웅 능력 자제
     const shouldUseHeroPower = !(p.faction === 'demon' && p.hp <= 5);
     if (shouldUseHeroPower) {
+      showAiActionBanner(`⚡ ${getHeroPowerName(p.faction)}!`);
       p.mana -= 2;
       p.heroPowerUsed = true;
       gameState.stats.p2.heroPowerUsed++;
@@ -3451,6 +3540,10 @@ function aiAttack() {
       // attackTarget이 250ms 후 render하므로 그 뒤에 다음 공격
       setTimeout(nextAttack, 350);
     } else {
+      // 돌진 미니언이 공격 대상 없는 경우 로그
+      if (attacker.summonedThisTurn && attacker.keywords.includes('rush')) {
+        addLog(`${attacker.name}: 공격할 대상이 없습니다.`);
+      }
       nextAttack();
     }
   }
@@ -3534,8 +3627,9 @@ function render() {
     endBtn.textContent = '턴 종료';
   }
 
-  // Opponent hero targetable?
-  if (selectedAttacker || (targetingSpell && (targetingSpell.card.target === 'enemy_any'))) {
+  // Opponent hero targetable? (도발 미니언이 있으면 공격 선택 시 영웅 타겟 불가)
+  const oppHasTaunt = opp.field.some(m => m.keywords.includes('taunt'));
+  if ((selectedAttacker && !oppHasTaunt) || (targetingSpell && (targetingSpell.card.target === 'enemy_any'))) {
     oppHero.classList.add('targetable');
   } else {
     oppHero.classList.remove('targetable');
@@ -3569,16 +3663,24 @@ function renderHand(elementId, p, playerKey, isMine) {
 
   if (!isMine) {
     // Show card backs
-    for (let i = 0; i < p.hand.length; i++) {
+    const backCount = p.hand.length;
+    const backOverlap = backCount > 7 ? Math.min(-10, -(backCount - 7) * 4) : 0;
+    for (let i = 0; i < backCount; i++) {
       const back = document.createElement('div');
       back.className = `card-back card-back-${p.faction}`;
       back.setAttribute('data-emoji', '🂠');
+      if (backOverlap && i > 0) back.style.marginLeft = `${backOverlap}px`;
       hand.appendChild(back);
     }
     return;
   }
 
   const isCurrentPlayer = gameState.currentPlayer === playerKey;
+
+  const count = p.hand.length;
+  const fanEnabled = count > 5;
+  const maxAngle = Math.min(count * 2.5, 25); // 최대 회전 범위
+  const overlapMargin = count > 7 ? Math.min(-15, -(count - 7) * 5) : 0;
 
   p.hand.forEach((card, i) => {
     const el = document.createElement('div');
@@ -3588,6 +3690,18 @@ function renderHand(elementId, p, playerKey, isMine) {
     const drawAnim = (card.uid === lastDrawnUid) ? 'card-draw-anim' : '';
     if (card.uid === lastDrawnUid) lastDrawnUid = null;
     el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''} ${drawAnim}`;
+
+    // 팬 레이아웃: 카드가 많으면 겹치며 약간 회전
+    if (fanEnabled) {
+      const center = (count - 1) / 2;
+      const offset = i - center;
+      const angle = (offset / center) * maxAngle;
+      const yShift = Math.abs(offset) * 3; // 가장자리 카드 약간 내려감
+      el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
+      el.style.transformOrigin = 'center bottom';
+      el.style.marginLeft = i === 0 ? '0' : `${overlapMargin}px`;
+      el.style.zIndex = i;
+    }
 
     el.innerHTML = `
       <div class="card-mana">${card.cost}</div>
@@ -3634,7 +3748,12 @@ function renderField(elementId, p, playerKey, isMine) {
     if (gameMode === 'ai' && playerKey === 'p2') canAtk = false;
 
     const isSelected = selectedAttacker && selectedAttacker.uid === m.uid;
-    const isTargetable = !isMine && (selectedAttacker || targetingSpell || battlecryTarget);
+    // 도발이 있으면 도발 미니언만 타겟 가능 (주문 타겟팅은 도발 무시)
+    const hasTauntOnField = !isMine && gameState[playerKey].field.some(x => x.keywords.includes('taunt'));
+    const isTargetable = !isMine && (
+      (selectedAttacker && (!hasTauntOnField || m.keywords.includes('taunt'))) ||
+      targetingSpell || battlecryTarget
+    );
 
     const summonAnim = (m.uid === lastSummonedUid) ? 'summon-anim' : '';
     if (m.uid === lastSummonedUid) lastSummonedUid = null;
@@ -3737,6 +3856,19 @@ function showHeroFloatingText(player, text, type) {
   document.body.appendChild(ft);
 
   setTimeout(() => ft.remove(), 1000);
+}
+
+let aiBannerTimer = null;
+function showAiActionBanner(text) {
+  const banner = document.getElementById('ai-action-banner');
+  if (!banner) return;
+  banner.textContent = text;
+  banner.style.display = 'block';
+  banner.style.animation = 'none';
+  void banner.offsetWidth; // reflow
+  banner.style.animation = 'aiBannerFade 1.2s ease-out forwards';
+  clearTimeout(aiBannerTimer);
+  aiBannerTimer = setTimeout(() => { banner.style.display = 'none'; }, 1200);
 }
 
 function triggerBattlecryFlash() {
@@ -3935,6 +4067,20 @@ function rematch() {
     initGame();
   });
 }
+
+// Mouse move for attack arrow
+document.addEventListener('mousemove', (e) => {
+  if (attackArrowStart && selectedAttacker) {
+    showAttackArrow(attackArrowStart.x, attackArrowStart.y, e.clientX, e.clientY);
+  }
+});
+
+// Touch move for attack arrow (mobile)
+document.addEventListener('touchmove', (e) => {
+  if (attackArrowStart && selectedAttacker && e.touches.length > 0) {
+    showAttackArrow(attackArrowStart.x, attackArrowStart.y, e.touches[0].clientX, e.touches[0].clientY);
+  }
+});
 
 // Right click to cancel
 document.addEventListener('contextmenu', (e) => {

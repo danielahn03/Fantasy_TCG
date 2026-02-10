@@ -3370,7 +3370,6 @@ function aiTurn() {
     if (card.type === 'minion' && p.field.length < 7) {
       const ci = p.hand.findIndex(c => c.uid === card.uid);
       if (ci < 0) break;
-      showAiActionBanner(`${card.emoji} ${card.name} 소환!`);
       if (card.battlecry_target === 'enemy_minion' && opp.field.length > 0) {
         const target = opp.field.reduce((best, m) => {
           if (m.currentHealth <= card.battlecry_damage) return m;
@@ -3874,17 +3873,29 @@ function showHeroFloatingText(player, text, type) {
   setTimeout(() => ft.remove(), 1000);
 }
 
-let aiBannerTimer = null;
+const aiBannerQueue = [];
+let aiBannerPlaying = false;
+
 function showAiActionBanner(text) {
+  aiBannerQueue.push(text);
+  if (!aiBannerPlaying) playNextAiBanner();
+}
+
+function playNextAiBanner() {
+  if (aiBannerQueue.length === 0) { aiBannerPlaying = false; return; }
+  aiBannerPlaying = true;
+  const text = aiBannerQueue.shift();
   const banner = document.getElementById('ai-action-banner');
-  if (!banner) return;
+  if (!banner) { aiBannerPlaying = false; return; }
   banner.textContent = text;
   banner.style.display = 'block';
   banner.style.animation = 'none';
-  void banner.offsetWidth; // reflow
+  void banner.offsetWidth;
   banner.style.animation = 'aiBannerFade 1.2s ease-out forwards';
-  clearTimeout(aiBannerTimer);
-  aiBannerTimer = setTimeout(() => { banner.style.display = 'none'; }, 1200);
+  setTimeout(() => {
+    banner.style.display = 'none';
+    playNextAiBanner();
+  }, 1300);
 }
 
 function triggerBattlecryFlash() {

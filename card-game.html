@@ -966,13 +966,8 @@ body {
 
 /* Card draw animation */
 .card-draw-anim {
-  animation: cardDraw 0.4s ease-out;
-}
-
-@keyframes cardDraw {
-  0% { opacity: 0; transform: translateY(-60px) scale(0.5) rotate(-10deg); }
-  60% { opacity: 1; transform: translateY(5px) scale(1.05) rotate(2deg); }
-  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+  opacity: 0;
+  transition: opacity 0.35s ease-out, transform 0.4s ease-out;
 }
 
 /* Summon animation */
@@ -3689,21 +3684,39 @@ function renderHand(elementId, p, playerKey, isMine) {
     const factionClass = card.id === 'coin' ? 'coin-card' : getFactionClass(p.faction);
     const playable = isCurrentPlayer && card.cost <= p.mana && (card.type !== 'minion' || p.field.length < 7);
 
-    const drawAnim = (card.uid === lastDrawnUid) ? 'card-draw-anim' : '';
+    const isDrawn = card.uid === lastDrawnUid;
     if (card.uid === lastDrawnUid) lastDrawnUid = null;
-    el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''} ${drawAnim}`;
+    el.className = `card in-hand ${factionClass} ${card.type === 'spell' ? 'spell-card' : ''} ${playable ? 'playable' : ''} ${isDrawn ? 'card-draw-anim' : ''}`;
 
-    // 아크 배치: 7장+ 시 중앙 높고, 양쪽으로 갈수록 낮아지며 회전
+    // 아크 배치 계산 (아크 비활성 시 기본값 0)
+    let arcAngle = 0, arcY = 0;
     if (arcEnabled) {
       const center = (count - 1) / 2;
       const offset = i - center;
       const normalizedOffset = center > 0 ? offset / center : 0;
-      const angle = normalizedOffset * maxAngle;
-      const yShift = normalizedOffset * normalizedOffset * arcHeight;
-      el.style.transform = `rotate(${angle}deg) translateY(${yShift}px)`;
+      arcAngle = normalizedOffset * maxAngle;
+      arcY = normalizedOffset * normalizedOffset * arcHeight;
       el.style.transformOrigin = 'center bottom';
       if (overlapMargin && i > 0) el.style.marginLeft = `${overlapMargin}px`;
       el.style.zIndex = i;
+    }
+
+    // 최종 아크 위치 적용 (드로우 카드는 초기 상태 후 transition)
+    const finalTransform = `rotate(${arcAngle}deg) translateY(${arcY}px)`;
+    if (isDrawn) {
+      // 위에서 날아오는 초기 상태
+      el.style.transform = `rotate(-10deg) translateY(-60px) scale(0.5)`;
+      el.style.opacity = '0';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.classList.remove('card-draw-anim');
+          el.style.transition = 'opacity 0.3s ease-out, transform 0.4s ease-out';
+          el.style.transform = finalTransform;
+          el.style.opacity = '1';
+        });
+      });
+    } else {
+      el.style.transform = finalTransform;
     }
 
     el.innerHTML = `
